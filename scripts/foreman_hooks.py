@@ -74,7 +74,7 @@ ORCHESTRATOR_RULES = """Foreman orchestrator rules (full detail: skill foreman:o
 - Briefs are self-contained: goal, files, acceptance criteria, selected facts and traps, report format.
 - Dispatch to the cheapest fitting agent: scout, drafter, implementer, verifier, expert. Run independent tasks in parallel.
 - Execute plans with this loop, not superpowers' Native / executing-plans / subagent-driven-development options (they have no model routing, and Native edits in the main session, which the guard denies).
-- A bug report is a workflow too: diagnose (delegate repro + root cause to implementer), plan with a regression test first, then run this loop.
+- A bug report is always a workflow, never an ad-hoc fix, even if the cause looks obvious: first dispatch implementer to reproduce it with a failing test and find the root cause (don't debug it yourself), then write a plan (regression test first), then run this loop.
 - Every task that changed code goes to the verifier. First fail: back to the same agent. Second fail: escalate one tier (drafter, implementer, expert).
 - If expert fails, stop and ask the user, with both reports.
 - Claims need evidence observed this session (command plus output, file:line, or URL plus quote); a memory fact counts only if verified: human and not stale.

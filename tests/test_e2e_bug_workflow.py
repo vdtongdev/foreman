@@ -8,6 +8,9 @@ import subprocess
 import sys
 
 import pytest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
 
 pytestmark = pytest.mark.skipif(os.environ.get("FOREMAN_E2E") != "1", reason="set FOREMAN_E2E=1 to run")
 
@@ -52,7 +55,8 @@ def test_bug_goes_through_diagnose_plan_execute(tmp_path):
         subprocess.run(
             ["claude", "-p", PROMPT, "--model", os.environ.get("FOREMAN_E2E_MODEL", "sonnet"),
              "--permission-mode", "acceptEdits", "--allowedTools", "Bash",
-             "--output-format", "stream-json", "--verbose"],
+             "--output-format", "stream-json", "--verbose",
+             "--plugin-dir", str(ROOT)],  # test the working tree, not the (possibly older) installed copy
             cwd=repo, stdout=f, stderr=subprocess.STDOUT, timeout=900, check=False,
         )
     print(f"\ntranscript: {out}")

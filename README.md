@@ -79,7 +79,7 @@ Only `expert` keeps the Agent tool, and it uses it only to dispatch scouts. Ever
    - If `expert` fails, the orchestrator stops and asks the user, with both reports.
 5. **Report.** "Done" is reported only by quoting the verifier's evidence.
 
-**Bug requests** go through the same workflow: the implementer reproduces the bug with a failing test and finds the root cause, the orchestrator writes a plan (regression test first, then the fix), and the loop executes it. The verifier checks that the regression test fails on the base commit and passes after the fix.
+**Bug requests** always go through the same workflow, never an ad-hoc fix: the orchestrator's first move is to dispatch the implementer for diagnosis (it doesn't debug the code itself); the implementer reproduces the bug with a failing test and finds the root cause, the orchestrator writes a plan (regression test first, then the fix), and the loop executes it. The verifier checks that the regression test fails on the base commit and passes after the fix.
 
 At session start, a hook injects a short summary of these rules; the full version is the `foreman:orchestrating` skill. The loop replaces superpowers' subagent-driven-development, which has no per-task model routing; superpowers' brainstorming and writing-plans are still used for planning.
 

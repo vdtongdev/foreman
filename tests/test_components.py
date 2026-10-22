@@ -67,6 +67,8 @@ def test_bug_requests_section_placement_and_content():
     sec = text[j:k].lower()
     for word in ["implementer", "writing-plans", "regression test", "verifier", "base commit", "expert"]:
         assert word in sec, word
+    assert "may skip the plan" not in sec and "trivial" not in sec
+    assert "yourself" in sec and "docs/plans" in sec
 
 
 def test_agents_describe_bug_handling():
