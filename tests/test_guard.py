@@ -45,3 +45,33 @@ def test_guard_allows_plan_doc(tmp_path):
 
 def test_guard_allows_claude_md(tmp_path):
     assert _run(tmp_path, "sub/CLAUDE.md") is None
+
+
+def test_guard_negative_paths_denied(tmp_path):
+    for p in ("docs/specs/../../src/x.py", "docs-evil/specs/x.md", "docs/plansX/a.py"):
+        assert _run(tmp_path, p) is not None, p
+
+
+def test_guard_allows_outside_project(tmp_path):
+    assert _run(tmp_path, str(tmp_path / "elsewhere" / "plan.md")) is None
+
+
+def test_guard_in_worktree(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    g = lambda *a, cwd=repo: subprocess.run(["git", *a], cwd=cwd, check=True, capture_output=True)  # noqa: E731
+    g("init", "-q")
+    g("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "i")
+    wt = tmp_path / "wt"
+    g("worktree", "add", "-q", str(wt))
+    env = {"FOREMAN_HOME": str(tmp_path / "home")}
+
+    def run(f):
+        out, _, rc = run_hook("guard", {"cwd": str(wt), "tool_input": {"file_path": f}}, env)
+        assert rc == 0
+        return json.loads(out) if out.strip() else None
+    assert run("docs/plans/p.md") is None
+    assert run("src/x.py") is not None
+    # trap path is relative to the worktree, not the main checkout
+    import memory
+    assert memory._toplevel(wt).resolve() == wt.resolve()

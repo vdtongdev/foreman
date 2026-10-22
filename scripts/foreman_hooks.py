@@ -33,10 +33,11 @@ def guard(payload: dict):
     path = (cwd / str(raw).replace("\\", "/")).resolve()
     if path.name == "CLAUDE.md":
         return None
+    root = memory._toplevel(cwd) or cwd
+    if not _under(path, root.resolve()):
+        return None
     bases = [memory.user_dir(), memory.project_dir(cwd)]
-    root = memory._git_root(cwd)
-    if root:
-        bases += [root / "docs" / d for d in ("specs", "plans", "superpowers")]
+    bases += [root / "docs" / d for d in ("specs", "plans", "superpowers")]
     if any(b and _under(path, b.resolve()) for b in bases):
         return None
     return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
@@ -69,6 +70,7 @@ ORCHESTRATOR_RULES = """Foreman orchestrator rules (full detail: skill foreman:o
 - You orchestrate; you do not edit project files (a guard denies it). Dispatch a subagent instead.
 - Clarify: ask the user only what no code, doc, memory, web page or command can show; say what you already checked.
 - Recall: run `mem select --path <files> --topic <topics>` and paste the facts and traps into each task brief.
+- Memory entries follow the foreman:memory skill format (hooks validate them).
 - Briefs are self-contained: goal, files, acceptance criteria, selected facts and traps, report format.
 - Dispatch to the cheapest fitting agent: scout, drafter, implementer, verifier, expert. Run independent tasks in parallel.
 - Every task that changed code goes to the verifier. First fail: back to the same agent. Second fail: escalate one tier (drafter, implementer, expert).
@@ -93,7 +95,7 @@ def session_start(payload: dict):
         return None
     cwd = Path(payload.get("cwd") or ".")
     layers = [memory.user_dir(), memory.project_dir(cwd)]
-    problems = [p for d in layers if d for p in memory.refresh_layer(d)]
+    problems = [p.replace(str(d) + os.sep, "") for d in layers if d for p in memory.refresh_layer(d)]
     entries = [e for d in layers if d for e in memory.load_layer(d)[0]]
     blocks = [ORCHESTRATOR_RULES]
     idx = memory.user_dir() / "MEMORY.md"
@@ -103,7 +105,11 @@ def session_start(payload: dict):
     if st:
         blocks.append("Stale (re-check before use): " + ", ".join(e.name for e in st))
     if problems:
-        blocks.append("Invalid memory entries: " + "; ".join(problems))
+        txt = "; ".join(problems)
+        if len(txt) > 3000:
+            k = len(txt[:3000].split("; ")) - 1
+            txt = "; ".join(problems[:k]) + f"; … {len(problems) - k} more: run mem validate"
+        blocks.append("Invalid memory entries: " + txt)
     dangling = memory.dangling_links(entries)
     if dangling:
         blocks.append("Dangling links: " + "; ".join(dangling))
@@ -159,7 +165,7 @@ def trap_inject(payload: dict):
     if not agent or not raw:
         return None
     cwd = Path(payload.get("cwd") or ".")
-    root = memory._git_root(cwd)
+    root = memory._toplevel(cwd)
     if root is None:
         return None
     path = (cwd / str(raw).replace("\\", "/")).resolve()
@@ -193,7 +199,7 @@ HOOKS = {"guard": guard, "memory-write": memory_write, "session-start": session_
 
 def main(argv):
     try:
-        payload = json.loads(sys.stdin.read())
+        payload = json.loads(sys.stdin.buffer.read())
         result = HOOKS[argv[1]](payload)
         if result is not None:
             print(json.dumps(result))

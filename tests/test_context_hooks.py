@@ -91,3 +91,12 @@ def test_trap_inject_ignores_main_session(tmp_path):
     d, repo = _user(tmp_path), _repo(tmp_path)
     write(d, "t", trap=True, paths=["src/*.py"])
     assert _edit(tmp_path, None, str(repo / "src" / "x.py"), repo) is None
+
+
+def test_session_start_invalid_block_relative_and_capped(tmp_path):
+    d = _user(tmp_path)
+    for i in range(200):
+        (d / f"bad{i:03}.md").write_text("---\nname: x\n---\nb\n")
+    c = _run("session-start", {"cwd": str(tmp_path)}, tmp_path)["hookSpecificOutput"]["additionalContext"]
+    assert str(d) not in c and "more: run mem validate" in c
+    assert len(c.split("Invalid memory entries: ")[1]) < 3200
