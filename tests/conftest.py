@@ -13,6 +13,7 @@ def run_hook(name, payload, env=None):
     r = subprocess.run(
         [sys.executable, str(SCRIPTS / "foreman_hooks.py"), name],
         input=stdin, capture_output=True, text=True,
-        env={**os.environ, **(env or {})},
+        env={**{k: v for k, v in os.environ.items() if k not in ("CLAUDE_PLUGIN_DATA", "FOREMAN_SOLO")},
+             **(env or {})},
     )
     return r.stdout, r.stderr, r.returncode
