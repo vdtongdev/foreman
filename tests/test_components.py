@@ -54,3 +54,24 @@ def test_frontmatter_values_with_colon_space_are_quoted():
             if m and ": " in m.group(1) and not m.group(1).startswith(('"', "'")):
                 bad.append(f"{f.name}: {line}")
     assert bad == []
+
+
+def _skill():
+    return (ROOT / "skills" / "orchestrating" / "SKILL.md").read_text(encoding="utf-8")
+
+
+def test_bug_requests_section_placement_and_content():
+    text = _skill()
+    i, j, k = (text.find(h) for h in ("\n## Escalation", "\n## Bug requests", "\n## Task brief template"))
+    assert 0 < i < j < k
+    sec = text[j:k].lower()
+    for word in ["implementer", "writing-plans", "regression test", "verifier", "base commit", "expert"]:
+        assert word in sec, word
+
+
+def test_agents_describe_bug_handling():
+    a = agents()
+    impl = a["implementer"][1].lower()
+    assert "bug" in impl and "failing test" in impl and "root cause" in impl
+    ver = a["verifier"][1].lower()
+    assert "regression test" in ver and "base commit" in ver and "git worktree" in ver
