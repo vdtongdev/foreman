@@ -1,1 +1,1 @@
-{"hooks": {}}
+{"hooks": {"PreToolUse": [{"matcher": "Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" guard"}]}]}}
