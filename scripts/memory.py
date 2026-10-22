@@ -6,6 +6,7 @@
 import os
 import re
 import subprocess
+from datetime import date
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -130,7 +131,8 @@ def validate(entry: Entry, names: set[str]) -> list[str]:
     elif entry.stale_after and entry.stale_after != "never" and not (
             isinstance(entry.stale_after, str) and DATE.match(entry.stale_after)):
         bad(f"stale_after '{entry.stale_after}' must be YYYY-MM-DD or never")
-    if entry.superseded_by and entry.superseded_by not in names:
+    if entry.superseded_by and not (
+            isinstance(entry.superseded_by, str) and entry.superseded_by in names):
         bad(f"superseded_by '{entry.superseded_by}' does not exist")
     return out
 
@@ -178,3 +180,102 @@ def load_layer(dir: Path) -> tuple[list[Entry], list[str]]:
         except (ValueError, OSError) as e:
             errors.append(str(e))
     return entries, errors
+
+
+TYPE_ORDER = {t: i for i, t in enumerate(("user", "feedback", "project", "reference"))}
+LINK = re.compile(r"\[\[([^\]\n]+)\]\]")
+MAX_LINES, MAX_BYTES = 200, 25000
+
+
+def render_index(entries: list[Entry]) -> str:
+    act = sorted((e for e in entries if e.status != "deprecated"),
+                 key=lambda e: (not e.trap, TYPE_ORDER.get(e.type, 9), e.name))
+    lines = [f"- {'TRAP: ' if e.trap else ''}[{e.name}]({e.file.name}) — {e.description}"
+             for e in act]
+    size = lambda ls: len(("\n".join(ls) + "\n").encode())  # noqa: E731
+    if len(lines) <= MAX_LINES and size(lines) <= MAX_BYTES:
+        return "\n".join(lines) + "\n" if lines else ""
+    k = min(len(lines), MAX_LINES - 1)
+    while k and size(lines[:k] + [f"- … {len(lines) - k} more: run mem select"]) > MAX_BYTES:
+        k -= 1
+    return "\n".join(lines[:k] + [f"- … {len(lines) - k} more: run mem select"]) + "\n"
+
+
+def rewrite_superseded(dir: Path, entries: list[Entry]) -> list[str]:
+    sup = {e.name: e.superseded_by for e in entries if isinstance(e.superseded_by, str)}
+    names = {e.name for e in entries}
+
+    def final(n: str) -> str:
+        seen = {n}
+        while sup.get(n) in names and sup[n] not in seen:
+            n = sup[n]
+            seen.add(n)
+        return n
+
+    changed = []
+    for e in entries:
+        p = Path(dir) / e.file.name
+        text = p.read_text(encoding="utf-8-sig")
+        new = LINK.sub(lambda m: f"[[{final(m[1])}]]" if m[1] in sup else m[0], text)
+        if new != text:
+            p.write_text(new, encoding="utf-8", newline="\n")
+            e.body = LINK.sub(lambda m: f"[[{final(m[1])}]]" if m[1] in sup else m[0], e.body)
+            changed.append(p.name)
+    return changed
+
+
+def dangling_links(entries: list[Entry]) -> list[str]:
+    names = {e.name for e in entries}
+    return [f"{e.file.name}: [[{x}]]" for e in entries
+            for x in LINK.findall(e.body) if x not in names]
+
+
+def refresh_layer(dir: Path) -> list[str]:
+    if not Path(dir).is_dir():
+        return []
+    entries, problems = load_layer(dir)
+    rewrite_superseded(dir, entries)
+    names = {e.name for e in entries}
+    ok = []
+    for e in entries:
+        errs = validate(e, names)
+        problems += errs
+        if not errs:
+            ok.append(e)
+    (Path(dir) / "MEMORY.md").write_text(render_index(ok), encoding="utf-8", newline="\n")
+    return problems
+
+
+def stale(entries: list[Entry], today: date) -> list[Entry]:
+    t = today.isoformat()
+    return [e for e in entries if e.status != "deprecated"
+            and isinstance(e.stale_after, str) and DATE.match(e.stale_after) and e.stale_after < t]
+
+
+def _glob(pat: str) -> re.Pattern:
+    out, i = "", 0
+    while i < len(pat):
+        if pat.startswith("**/", i):
+            out, i = out + "(?:.*/)?", i + 3
+        elif pat.startswith("**", i):
+            out, i = out + ".*", i + 2
+        else:
+            c = pat[i]
+            out += "[^/]*" if c == "*" else "[^/]" if c == "?" else re.escape(c)
+            i += 1
+    return re.compile(out + r"\Z")
+
+
+def select(entries: list[Entry], paths: list[str], topics: list[str],
+           type: str | None, traps_only: bool) -> list[tuple[Entry, str]]:
+    out = []
+    for e in entries:
+        if e.status == "deprecated" or (type and e.type != type) or (traps_only and not e.trap):
+            continue
+        if not paths and not topics:
+            out.append((e, "all"))
+            continue
+        why = next((f"path {g}" for g in e.paths for p in paths if _glob(g).match(p)), None)             or next((f"topic {t}" for t in e.topics if t in topics), None)
+        if why:
+            out.append((e, why))
+    return out
