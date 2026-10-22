@@ -88,19 +88,20 @@ class Entry:
 
 def load_entry(path: Path) -> Entry:
     try:
-        meta, body = parse_frontmatter(Path(path).read_text(encoding="utf-8"))
+        meta, body = parse_frontmatter(Path(path).read_text(encoding="utf-8-sig"))
     except ValueError as e:
         raise ValueError(f"{path}: {e}") from None
     md = meta.get("metadata") or {}
     if not isinstance(md, dict):
         raise ValueError(f"{path}: metadata must be a mapping")
+    lst = lambda k: md[k] if isinstance(md.get(k), list) else [md[k]] if isinstance(md.get(k), str) else []  # noqa: E731
     g = lambda k: md.get(k, "")  # noqa: E731
     return Entry(
         name=meta.get("name", ""), description=meta.get("description", ""),
         type=g("type"), status=g("status"), verified=g("verified"),
         verified_on=g("verified_on"), stale_after=g("stale_after"), body=body,
         file=Path(path), trap=md.get("trap") is True,
-        paths=md.get("paths", []), topics=md.get("topics", []),
+        paths=lst("paths"), topics=lst("topics"),
         superseded_by=md.get("superseded_by") or None,
     )
 
@@ -118,15 +119,16 @@ def validate(entry: Entry, names: set[str]) -> list[str]:
         v = getattr(entry, key)
         if not v:
             bad(f"{key} required")
-        elif v not in allowed:
+        elif not isinstance(v, str) or v not in allowed:
             bad(f"{key} '{v}' not in {sorted(allowed)}")
     if not entry.verified_on:
         bad("verified_on required")
-    elif not DATE.match(entry.verified_on):
+    elif not isinstance(entry.verified_on, str) or not DATE.match(entry.verified_on):
         bad(f"verified_on '{entry.verified_on}' must be YYYY-MM-DD")
     if entry.type in ("project", "reference") and not entry.stale_after:
         bad("stale_after required for project and reference")
-    elif entry.stale_after and entry.stale_after != "never" and not DATE.match(entry.stale_after):
+    elif entry.stale_after and entry.stale_after != "never" and not (
+            isinstance(entry.stale_after, str) and DATE.match(entry.stale_after)):
         bad(f"stale_after '{entry.stale_after}' must be YYYY-MM-DD or never")
     if entry.superseded_by and entry.superseded_by not in names:
         bad(f"superseded_by '{entry.superseded_by}' does not exist")

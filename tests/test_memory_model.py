@@ -86,3 +86,19 @@ def test_project_dir_matches_existing_case_insensitive(tmp_path, monkeypatch):
 
 def test_load_layer_missing_dir(tmp_path):
     assert memory.load_layer(tmp_path / "nope") == ([], [])
+
+
+def test_validate_non_string_values_report_not_raise(tmp_path):
+    for k, v in (("type", "[a]"), ("verified_on", "true"), ("verified_on", "[x]"), ("stale_after", "true")):
+        assert memory.validate(entry(tmp_path, **{k: v}), {"a"})
+
+
+def test_scalar_paths_coerced_to_list(tmp_path):
+    e = entry(tmp_path, paths="foo")
+    assert e.paths == ["foo"] and e.topics == []
+
+
+def test_bom_tolerated(tmp_path):
+    p = tmp_path / "a.md"
+    p.write_bytes(b"\xef\xbb\xbf---\nname: a\n---\n")
+    assert memory.load_entry(p).name == "a"
