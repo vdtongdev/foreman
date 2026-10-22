@@ -118,6 +118,12 @@ The model the user talks to: the session model (currently opus, effort medium). 
 
 Bash writes aren't classified (too fragile). The orchestrating skill forbids them.
 
+### 5.5 Plan gate
+
+`PreToolUse`, matcher `Agent|Task`. Edit work is dispatched only against a plan. Allow when any holds: `agent_id` present; `FOREMAN_SOLO=1`; `subagent_type` is `foreman:scout`, `foreman:verifier`, `Explore`, `Plan`, `claude-code-guide` or `statusline-setup`; the prompt has a line `Mode: diagnose`; the prompt names an existing `docs/plans/*.md` or `docs/superpowers/plans/*.md`; or this `session_id` wrote a plan this session. Otherwise deny with "Edit work needs a plan: write one under docs/plans/ (superpowers:writing-plans) and name it in the brief, or put 'Mode: diagnose' in a diagnosis-only brief (see foreman:orchestrating)."
+
+A `PostToolUse` hook `plan-record` (matcher `Write|Edit`) records `session_id` in `plans.json` (plugin data dir, 24 h prune) when the main session writes a `.md` under `docs/plans/` or `docs/superpowers/plans/`.
+
 ## 6. Memory knowledge base
 
 ### 6.1 Layers

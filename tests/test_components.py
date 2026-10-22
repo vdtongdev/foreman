@@ -65,7 +65,7 @@ def test_bug_requests_section_placement_and_content():
     i, j, k = (text.find(h) for h in ("\n## Escalation", "\n## Bug requests", "\n## Task brief template"))
     assert 0 < i < j < k
     sec = text[j:k].lower()
-    for word in ["implementer", "writing-plans", "regression test", "verifier", "base commit", "expert"]:
+    for word in ["mode: diagnose", "implementer", "writing-plans", "regression test", "verifier", "base commit", "expert"]:
         assert word in sec, word
     assert "may skip the plan" not in sec and "trivial" not in sec
     assert "yourself" in sec and "docs/plans" in sec

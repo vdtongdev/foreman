@@ -66,6 +66,61 @@ def memory_write(payload: dict):
     return None
 
 
+PLAN_DENY = ("Edit work needs a plan: write one under docs/plans/ (superpowers:writing-plans) and name it "
+             "in the brief, or put 'Mode: diagnose' in a diagnosis-only brief (see foreman:orchestrating).")
+READ_ONLY = {"foreman:scout", "foreman:verifier", "Explore", "Plan", "claude-code-guide", "statusline-setup"}
+PLAN_RE = re.compile(r"docs/(?:superpowers/)?plans/[^\s`'\")]+\.md")
+
+
+def _plans_file():
+    d = os.environ.get("CLAUDE_PLUGIN_DATA") or os.environ.get("FOREMAN_DATA")
+    return Path(d) / "plans.json" if d else None
+
+
+def _load_plans(f: Path) -> dict:
+    try:
+        d = json.loads(f.read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def plan_gate(payload: dict):
+    if "agent_id" in payload or os.environ.get("FOREMAN_SOLO") == "1":
+        return None
+    ti = payload.get("tool_input") or {}
+    prompt = ti.get("prompt") or ""
+    if ti.get("subagent_type") in READ_ONLY or re.search(r"^Mode:\s*diagnose\b", prompt, re.I | re.M):
+        return None
+    cwd = Path(payload.get("cwd") or ".")
+    root = memory._toplevel(cwd) or cwd
+    if any((root / m.group(0)).is_file() for m in PLAN_RE.finditer(prompt.replace("\\", "/"))):
+        return None
+    f = _plans_file()
+    if f and payload.get("session_id") in _load_plans(f):
+        return None
+    return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
+            "permissionDecision": "deny", "permissionDecisionReason": PLAN_DENY}}
+
+
+def plan_record(payload: dict):
+    raw = (payload.get("tool_input") or {}).get("file_path")
+    f = _plans_file()
+    if "agent_id" in payload or not raw or not f or not payload.get("session_id"):
+        return None
+    cwd = Path(payload.get("cwd") or ".")
+    root = (memory._toplevel(cwd) or cwd).resolve()
+    path = (cwd / str(raw).replace("\\", "/")).resolve()
+    if path.suffix != ".md" or not any(_under(path, root / "docs" / p) for p in ("plans", "superpowers/plans")):
+        return None
+    now = time.time()
+    plans = {k: v for k, v in _load_plans(f).items() if isinstance(v, (int, float)) and now - v <= 86400}
+    plans[payload["session_id"]] = now
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(plans), encoding="utf-8")
+    return None
+
+
 ORCHESTRATOR_RULES = """Foreman orchestrator rules (full detail: skill foreman:orchestrating):
 - You orchestrate; you do not edit project files (a guard denies it). Dispatch a subagent instead.
 - Clarify: ask the user only what no code, doc, memory, web page or command can show; say what you already checked.
@@ -74,7 +129,7 @@ ORCHESTRATOR_RULES = """Foreman orchestrator rules (full detail: skill foreman:o
 - Briefs are self-contained: goal, files, acceptance criteria, selected facts and traps, report format.
 - Dispatch to the cheapest fitting agent: scout, drafter, implementer, verifier, expert. Run independent tasks in parallel.
 - Execute plans with this loop, not superpowers' Native / executing-plans / subagent-driven-development options (they have no model routing, and Native edits in the main session, which the guard denies).
-- A bug report is always a workflow, never an ad-hoc fix, even if the cause looks obvious: first dispatch implementer to reproduce it with a failing test and find the root cause (don't debug it yourself), then write a plan (regression test first), then run this loop.
+- A bug report is always a workflow, never an ad-hoc fix, even if the cause looks obvious: first dispatch implementer (brief has the line `Mode: diagnose`) to reproduce it with a failing test and find the root cause (don't debug it yourself), then write a plan (regression test first), then run this loop. Edit dispatches need a plan named in the brief or written this session (a hook enforces it).
 - Every task that changed code goes to the verifier. First fail: back to the same agent. Second fail: escalate one tier (drafter, implementer, expert).
 - If expert fails, stop and ask the user, with both reports.
 - Claims need evidence observed this session (command plus output, file:line, or URL plus quote); a memory fact counts only if verified: human and not stale.
@@ -196,7 +251,8 @@ def evidence_check(payload: dict):
 
 HOOKS = {"guard": guard, "memory-write": memory_write, "session-start": session_start,
          "subagent-start": subagent_start, "trap-inject": trap_inject,
-         "evidence-check": evidence_check}
+         "evidence-check": evidence_check,
+         "plan-gate": plan_gate, "plan-record": plan_record}
 
 
 def main(argv):

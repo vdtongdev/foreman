@@ -47,8 +47,8 @@ foreman/
 ├── agents/           scout.md  drafter.md  implementer.md  verifier.md  expert.md
 ├── skills/           orchestrating/  memory/  verifying/
 ├── hooks/hooks.json  every hook calls scripts/foreman_hooks.py <hook>
-├── scripts/          foreman_hooks.py (guard, trap-inject, memory-write, session-start,
-│                     subagent-start, evidence-check)  memory.py (memory library + mem CLI)
+├── scripts/          foreman_hooks.py (guard, plan-gate, plan-record, trap-inject,
+│                     memory-write, session-start, subagent-start, evidence-check)  memory.py (memory library + mem CLI)
 ├── bin/              mem, mem.cmd (CLI launchers, on the Bash PATH)
 ├── tests/            pytest
 └── docs/             specs/, plans/
@@ -92,6 +92,15 @@ In the main session, `Edit`/`Write`/`NotebookEdit` on files inside the project (
 - any `CLAUDE.md` or `CLAUDE.local.md`
 
 To work solo for a session, set `FOREMAN_SOLO=1` in the environment before starting `claude`.
+
+## Plan gate
+
+In the main session, dispatching an edit agent (`implementer`, `drafter`, `expert`, `general-purpose`) is denied unless there is a plan. A `PreToolUse` hook on `Agent|Task` allows the dispatch when any of these holds:
+
+- the brief has a line `Mode: diagnose` (the diagnosis dispatch);
+- the brief names an existing plan file, `docs/plans/<file>.md` or `docs/superpowers/plans/<file>.md`;
+- the session already wrote a plan under those folders (a `PostToolUse` hook records it);
+- the agent is read-only (`scout`, `verifier`, `Explore`, `Plan`, ...), the caller is a subagent, or `FOREMAN_SOLO=1` is set.
 
 ## Memory: `mem`
 

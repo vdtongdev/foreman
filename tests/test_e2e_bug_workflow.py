@@ -26,18 +26,23 @@ def git(cwd, *args):
 
 
 def tool_uses(path):
-    """Yield (index, name, input, is_main_session) for every tool_use in the stream-json transcript."""
+    """Yield (index, name, input, is_main_session) for every allowed (not plan-gate-denied) tool_use in the stream-json transcript."""
+    uses, denied = [], set()
     with open(path, encoding="utf-8") as f:
         for i, line in enumerate(f):
             try:
                 ev = json.loads(line)
             except ValueError:
                 continue
-            if ev.get("type") != "assistant":
+            content = (ev.get("message") or {}).get("content")
+            if not isinstance(content, list):
                 continue
-            for b in ev["message"]["content"]:
-                if b.get("type") == "tool_use":
-                    yield i, b["name"], b["input"], not ev.get("parent_tool_use_id")
+            for b in content:
+                if ev.get("type") == "assistant" and b.get("type") == "tool_use":
+                    uses.append((i, b["name"], b["input"], not ev.get("parent_tool_use_id"), b["id"]))
+                elif b.get("type") == "tool_result" and "Edit work needs a plan" in json.dumps(b.get("content")):
+                    denied.add(b.get("tool_use_id"))
+    return [u[:4] for u in uses if u[4] not in denied]
 
 
 def test_bug_goes_through_diagnose_plan_execute(tmp_path):
