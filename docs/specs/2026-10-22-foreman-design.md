@@ -112,7 +112,7 @@ The model the user talks to: the session model (currently opus, effort medium). 
 `PreToolUse`, matcher `Edit|Write|NotebookEdit`:
 
 - **Inside a subagent** (`agent_id` present): allow.
-- **Main session, path in the always-allowed list**: allow. The list is the user memory folder, the project's auto-memory folder, the project's `docs/superpowers/` and `docs/specs/`, `docs/plans/`, and any `CLAUDE.md`.
+- **Main session, path in the always-allowed list**: allow. The list is the user memory folder, the project's auto-memory folder, the project's `docs/superpowers/` and `docs/specs/`, `docs/plans/`, and any `CLAUDE.md` or `CLAUDE.local.md`.
 - **Main session, `FOREMAN_SOLO=1` set in the environment**: allow (the escape hatch).
 - **Otherwise**: deny, with the reason "Orchestrator doesn't edit project files: dispatch a subagent (see foreman:orchestrating), or set FOREMAN_SOLO=1."
 

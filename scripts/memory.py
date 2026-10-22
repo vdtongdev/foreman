@@ -23,7 +23,7 @@ def _scalar(v: str):
         if end < 0:
             raise ValueError("unterminated quote")
         return v[1:end]
-    v = re.split(r"\s#", " " + v, 1)[0].strip()
+    v = re.split(r"\s#", " " + v, maxsplit=1)[0].strip()
     if v.startswith("["):
         if not v.endswith("]"):
             raise ValueError("unterminated list")

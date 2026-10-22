@@ -45,6 +45,11 @@ def test_session_start_lists_stale(tmp_path):
     assert "Dangling links: " in c and "[[ghost]]" in c
 
 
+def test_session_start_rules_override_superpowers_execution(tmp_path):
+    out = _run("session-start", {"cwd": str(tmp_path)}, tmp_path)
+    assert "not superpowers' Native" in out["hookSpecificOutput"]["additionalContext"]
+
+
 def test_session_start_silent_in_subagent(tmp_path):
     assert _run("session-start", {"cwd": str(tmp_path), "agent_id": "a1"}, tmp_path) is None
 

@@ -28,7 +28,7 @@ In the main session, `Edit`/`Write`/`NotebookEdit` on files inside the project (
 
 - the memory folders
 - `docs/specs/`, `docs/plans/` and `docs/superpowers/`
-- any `CLAUDE.md`
+- any `CLAUDE.md` or `CLAUDE.local.md`
 
 To work solo for a session, set `FOREMAN_SOLO=1` in the environment before starting `claude`.
 

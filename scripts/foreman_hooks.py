@@ -31,7 +31,7 @@ def guard(payload: dict):
         return None
     cwd = Path(payload.get("cwd") or ".")
     path = (cwd / str(raw).replace("\\", "/")).resolve()
-    if path.name == "CLAUDE.md":
+    if path.name in ("CLAUDE.md", "CLAUDE.local.md"):
         return None
     root = memory._toplevel(cwd) or cwd
     if not _under(path, root.resolve()):
@@ -73,6 +73,7 @@ ORCHESTRATOR_RULES = """Foreman orchestrator rules (full detail: skill foreman:o
 - Memory entries follow the foreman:memory skill format (hooks validate them).
 - Briefs are self-contained: goal, files, acceptance criteria, selected facts and traps, report format.
 - Dispatch to the cheapest fitting agent: scout, drafter, implementer, verifier, expert. Run independent tasks in parallel.
+- Execute plans with this loop, not superpowers' Native / executing-plans / subagent-driven-development options (they have no model routing, and Native edits in the main session, which the guard denies).
 - Every task that changed code goes to the verifier. First fail: back to the same agent. Second fail: escalate one tier (drafter, implementer, expert).
 - If expert fails, stop and ask the user, with both reports.
 - Claims need evidence observed this session (command plus output, file:line, or URL plus quote); a memory fact counts only if verified: human and not stale.

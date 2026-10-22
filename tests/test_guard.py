@@ -47,6 +47,10 @@ def test_guard_allows_claude_md(tmp_path):
     assert _run(tmp_path, "sub/CLAUDE.md") is None
 
 
+def test_guard_allows_claude_local_md(tmp_path):
+    assert _run(tmp_path, str(tmp_path / "repo" / "CLAUDE.local.md")) is None
+
+
 def test_guard_negative_paths_denied(tmp_path):
     for p in ("docs/specs/../../src/x.py", "docs-evil/specs/x.md", "docs/plansX/a.py"):
         assert _run(tmp_path, p) is not None, p
