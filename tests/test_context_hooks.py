@@ -50,6 +50,11 @@ def test_session_start_rules_override_superpowers_execution(tmp_path):
     assert "not superpowers' Native" in out["hookSpecificOutput"]["additionalContext"]
 
 
+def test_orchestrator_rules_cover_bugs_within_line_cap():
+    from foreman_hooks import ORCHESTRATOR_RULES
+    assert "bug" in ORCHESTRATOR_RULES and len(ORCHESTRATOR_RULES.splitlines()) <= 15
+
+
 def test_session_start_silent_in_subagent(tmp_path):
     assert _run("session-start", {"cwd": str(tmp_path), "agent_id": "a1"}, tmp_path) is None
 

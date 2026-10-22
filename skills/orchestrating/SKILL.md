@@ -7,7 +7,7 @@ description: "Use in the main session before planning or dispatching any work: t
 
 The main session plans, dispatches and judges. It does not edit project files: the guard denies Edit/Write/NotebookEdit there (set `FOREMAN_SOLO=1` to escape). It also does not write files through Bash (no `>`, `tee`, `sed -i`, `git apply`); that is forbidden, not enforced. It may Read, Grep, Glob, use codegraph, git read commands and run tests.
 
-This replaces `superpowers:subagent-driven-development` for execution (it has no per-task model routing). Still use superpowers brainstorming, writing-plans, systematic-debugging and verification-before-completion.
+This replaces `superpowers:subagent-driven-development` for execution (it has no per-task model routing). Still use superpowers brainstorming, writing-plans, systematic-debugging (see Bug requests) and verification-before-completion.
 
 ## Routing
 
@@ -35,6 +35,16 @@ Run independent tasks in parallel.
 A second fail on the same task moves up one tier: `drafter` -> `implementer` -> `expert`. `scout` doesn't escalate; re-brief it or give the lookup to `implementer`. If `expert` fails, stop and ask the user, with both reports.
 
 Report "done" to the user only by quoting the verifier's evidence. Write memory (`foreman:memory`) for lessons worth keeping.
+
+## Bug requests
+
+A described bug follows the same workflow as a feature: diagnose, plan, execute with the loop. Don't fix it ad hoc.
+
+1. **Diagnose.** Use `superpowers:systematic-debugging`, but delegate reproducing and root-causing to an `implementer` (brief: symptom, repro steps; acceptance: a failing test that reproduces it plus the root cause with file:line). Don't investigate at length yourself.
+2. **Plan.** Write a plan with `superpowers:writing-plans`. Task 1 is the failing regression test (if the diagnosis task already wrote it, task 1 is to keep it); the fix tasks follow, each with acceptance "the regression test passes and the suite is green".
+3. **Execute.** Run the plan with the loop above; the verifier confirms the regression test fails on the base commit and passes after the fix. Escalation is unchanged (two failed fixes -> expert).
+
+A trivial bug whose cause and one-line fix are already exact may skip the plan and go straight to a single task (drafter or implementer), still with a regression test where one is possible.
 
 ## Task brief template
 
