@@ -8,15 +8,32 @@ A Claude Code plugin that keeps the main session as an orchestrator. It:
 
 Design: [docs/specs/2026-10-22-foreman-design.md](docs/specs/2026-10-22-foreman-design.md).
 
-## Install
+## Installation
 
-Requires `uv` on PATH and git access to this private repo (`gh auth login` then `gh auth setup-git`, or an SSH key loaded in ssh-agent).
+### Prerequisites
+
+- [Claude Code](https://docs.claude.com/en/docs/claude-code/overview)
+- [uv](https://docs.astral.sh/uv/) (required for Python-based hooks and scripts)
+
+### Install Foreman
+
+Add the Foreman marketplace:
 
 ```bash
-claude plugin install foreman --marketplace vdtongdev/foreman
+claude plugin marketplace add vdtongdev/foreman
 ```
 
-It installs at user scope, so it is on in every project. On a machine without a GitHub SSH key, set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`.
+Install the plugin:
+
+```bash
+claude plugin install foreman@foreman
+```
+
+No GitHub authentication is required for this public repository.
+
+### Troubleshooting
+
+If installation fails, verify that the repository is publicly accessible and that Git, Claude Code, and uv are installed correctly. If you encounter an authentication error, check whether Git is configured to use SSH or a credential helper that requires authentication.
 
 **Auto-update** is off for custom marketplaces, and `marketplace.json` has no field to turn it on. Turn it on once per machine: `/plugin` → Marketplaces → foreman → Enable auto-update. `plugin.json` has no `version` on purpose, so updates follow commits.
 
