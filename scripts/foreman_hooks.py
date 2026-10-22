@@ -5,6 +5,7 @@
 """Foreman hook dispatcher. Every hook fails open: errors go to stderr, exit 0."""
 import json
 import os
+import re
 import sys
 import time
 import traceback
@@ -174,8 +175,20 @@ def trap_inject(payload: dict):
     return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": ctx}}
 
 
+def evidence_check(payload: dict):
+    if payload.get("stop_hook_active"):
+        return None
+    msg = payload.get("last_assistant_message")
+    if not isinstance(msg, str):
+        msg = ""
+    if all(re.search(rf"^## {s}", msg, re.MULTILINE | re.IGNORECASE) for s in ("Evidence", "Unverified")):
+        return None
+    return {"decision": "block", "reason": "Add ## Evidence and ## Unverified sections."}
+
+
 HOOKS = {"guard": guard, "memory-write": memory_write, "session-start": session_start,
-         "subagent-start": subagent_start, "trap-inject": trap_inject}
+         "subagent-start": subagent_start, "trap-inject": trap_inject,
+         "evidence-check": evidence_check}
 
 
 def main(argv):
