@@ -1,0 +1,7 @@
+{
+  "name": "foreman",
+  "owner": {"name": "vdtongdev"},
+  "plugins": [
+    {"name": "foreman", "source": "./", "description": "Orchestrator discipline and project memory for Claude Code."}
+  ]
+}
