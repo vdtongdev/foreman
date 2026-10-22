@@ -55,6 +55,12 @@ For the entry format, see the `foreman:memory` skill.
 
 Each hook runs `uv run --no-project --script`. The median of 10 runs of the guard on this Windows PC was **163 ms** (range 129–178 ms). That is under the 300 ms budget, so the hooks don't call Python directly.
 
+## Known issues
+
+- **The `MEMORY.md.bak` notice reads as an error.** When a hand-written `MEMORY.md` is backed up, the notice is listed with the memory "problems", under "Invalid memory entries" at session start or in the memory-write hook's block message. The write itself went through and the entry is valid. It happens at most once per memory folder.
+- **`mem deprecate NAME` can exit 1 by mistake.** The exit code checks the problem list with a substring match on the name. When another invalid entry's name contains `NAME` (for example `bold` when deprecating `old`), it returns 1 even though the deprecation succeeded.
+- **The invalid-entries list can start with "; … N more".** The session-start list is capped at 3,000 characters. If the first problem alone is longer than that, the list starts with this odd prefix. This is cosmetic.
+
 ## Development
 
 ```bash
