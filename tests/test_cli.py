@@ -57,10 +57,18 @@ def test_cli_deprecate_entry_without_status_line(tmp_path, monkeypatch, capsys):
     u, _ = setup(tmp_path, monkeypatch)
     write(u, "new")
     (u / "nost.md").write_text(
-        "---\nname: nost\ndescription: d\nmetadata:\n  type: user\n---\nbody\n")
+        "---\nname: nost\ndescription: d\nmetadata:\n  type: user\n  verified: human\n  verified_on: 2026-10-22\n---\nbody\n")
     (u / "nometa.md").write_text("---\nname: nometa\ndescription: d\n---\nbody\n")
     assert memory.main(["deprecate", "nost", "--by", "new"]) == 0
     e = memory.load_entry(u / "nost.md")
     assert (e.status, e.superseded_by, e.type) == ("deprecated", "new", "user")
     assert memory.main(["deprecate", "nometa"]) == 1
     assert "metadata" in capsys.readouterr().err
+
+
+def test_cli_deprecate_missing_replacement_fails_without_edit(tmp_path, monkeypatch, capsys):
+    u, _ = setup(tmp_path, monkeypatch)
+    p = write(u, "old")
+    before = p.read_text()
+    assert memory.main(["deprecate", "old", "--by", "missing"]) == 1
+    assert p.read_text() == before

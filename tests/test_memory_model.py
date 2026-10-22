@@ -102,3 +102,9 @@ def test_bom_tolerated(tmp_path):
     p = tmp_path / "a.md"
     p.write_bytes(b"\xef\xbb\xbf---\nname: a\n---\n")
     assert memory.load_entry(p).name == "a"
+
+
+def test_project_dir_slug_replaces_every_non_alnum(tmp_path, monkeypatch):
+    monkeypatch.setenv("FOREMAN_HOME", str(tmp_path))
+    monkeypatch.setattr(memory, "_git_root", lambda cwd: PureWindowsPath(r"C:\a_b\slug_test.x"))
+    assert memory.project_dir(tmp_path) == tmp_path / ".claude/projects/C--a-b-slug-test-x/memory"

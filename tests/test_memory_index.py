@@ -106,3 +106,13 @@ def test_select_by_glob_and_topic(tmp_path):
     assert [n for n, _ in sel()] == ["plain", "t"]
     assert sel(traps_only=True, paths=["tests/a"]) == [("t", "path tests/**")]
     assert sel(type="user") == []
+
+
+def test_refresh_backs_up_hand_written_memory_md(tmp_path):
+    write(tmp_path, "a")
+    (tmp_path / "MEMORY.md").write_text("my own notes\n")
+    probs = memory.refresh_layer(tmp_path)
+    assert any("MEMORY.md.bak" in x for x in probs)
+    assert (tmp_path / "MEMORY.md.bak").read_text() == "my own notes\n"
+    assert memory.refresh_layer(tmp_path) == []
+    assert load(tmp_path)[0].name == "a" and len(load(tmp_path)) == 1

@@ -24,7 +24,7 @@ To turn it off for one project, disable the plugin at local scope.
 
 ## Orchestrator guard
 
-In the main session, `Edit`/`Write`/`NotebookEdit` on project files are denied. Subagents can edit. These paths are always allowed:
+In the main session, `Edit`/`Write`/`NotebookEdit` on files inside the project (git top-level, or cwd outside git) are denied; paths outside the project are allowed. Subagents can edit. These paths are always allowed:
 
 - the memory folders
 - `docs/specs/`, `docs/plans/` and `docs/superpowers/`
@@ -41,7 +41,7 @@ To work solo for a session, set `FOREMAN_SOLO=1` in the environment before start
 | `mem select [--path P]... [--topic T]... [--type X] [--traps]` | Matching active entries, project layer first, with the reason each matched |
 | `mem stale` | Entries past `stale_after` |
 | `mem validate` | Check every entry; exit 1 with the problems |
-| `mem index` | Regenerate both `MEMORY.md` indexes |
+| `mem index` | Regenerate both `MEMORY.md` indexes (a hand-written `MEMORY.md` is first saved once as `MEMORY.md.bak`) |
 | `mem deprecate NAME [--by NEW]` | Mark an entry deprecated (and superseded) |
 
 Memory layers:

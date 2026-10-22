@@ -145,21 +145,32 @@ def user_dir() -> Path:
     return _home() / ".claude" / "memory"
 
 
-def _git_root(cwd: Path) -> Path | None:
+def _rev_parse(cwd: Path, flag: str) -> str:
     try:
-        r = subprocess.run(
-            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-            cwd=cwd, capture_output=True, text=True)
-    except OSError:
-        return None
-    return Path(r.stdout.strip()).parent if r.returncode == 0 and r.stdout.strip() else None
+        r = subprocess.run(["git", "rev-parse", "--path-format=absolute", flag],
+                           cwd=cwd, capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def _git_root(cwd: Path) -> Path | None:
+    """Main checkout (shared by worktrees); used for the memory folder slug."""
+    out = _rev_parse(cwd, "--git-common-dir")
+    return Path(out).parent if out else None
+
+
+def _toplevel(cwd: Path) -> Path | None:
+    """Root of the current checkout, worktree-aware."""
+    out = _rev_parse(cwd, "--show-toplevel")
+    return Path(out) if out else None
 
 
 def project_dir(cwd: Path) -> Path | None:
     root = _git_root(cwd)
     if root is None:
         return None
-    slug = str(root).translate(str.maketrans(dict.fromkeys(chr(92) + ":/ ", "-")))
+    slug = re.sub(r"[^A-Za-z0-9]", "-", str(root))
     projects = _home() / ".claude" / "projects"
     if projects.is_dir():
         for d in projects.iterdir():
@@ -242,7 +253,14 @@ def refresh_layer(dir: Path) -> list[str]:
         problems += errs
         if not errs:
             ok.append(e)
-    (Path(dir) / "MEMORY.md").write_text(render_index(ok), encoding="utf-8", newline="\n")
+    idx, new = Path(dir) / "MEMORY.md", render_index(ok)
+    if idx.is_file():
+        old = idx.read_text(encoding="utf-8-sig")
+        bak = idx.with_name("MEMORY.md.bak")
+        if not bak.exists() and set(filter(str.strip, old.splitlines())) - set(new.splitlines()):
+            bak.write_text(old, encoding="utf-8", newline="")
+            problems.append(f"{idx} had hand-written lines; saved to MEMORY.md.bak")
+    idx.write_text(new, encoding="utf-8", newline="\n")
     return problems
 
 
@@ -337,7 +355,7 @@ def main(argv: list[str]) -> int:
     d.add_argument("--by")
     a = ap.parse_args(argv)
 
-    root = _git_root(Path.cwd())
+    root = _toplevel(Path.cwd())
     pd = project_dir(Path.cwd())
     layers = ([("project", pd)] if pd else []) + [("user", user_dir())]
     loaded = [(n, d_, *load_layer(d_)) for n, d_ in layers]
@@ -369,15 +387,19 @@ def main(argv: list[str]) -> int:
         for _, d_, entries, _ in loaded:
             hit = next((e for e in entries if e.name == a.name), None)
             if hit:
+                if a.by and a.by not in {e.name for e in entries}:
+                    print(f"mem: no entry named '{a.by}'", file=sys.stderr)
+                    return 1
                 p = hit.file
                 text = _set_status(p.read_bytes().decode("utf-8-sig"), a.by)
                 if text is None:
                     print(f"mem: '{a.name}' has no metadata block", file=sys.stderr)
                     return 1
                 p.write_text(text, encoding="utf-8", newline="")
-                for x in refresh_layer(d_):
+                probs = refresh_layer(d_)
+                for x in probs:
                     print(x)
-                return 0
+                return 1 if any(p.name in x for x in probs) else 0
         print(f"mem: no entry named '{a.name}'", file=sys.stderr)
         return 1
     return 0
