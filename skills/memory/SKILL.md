@@ -1,6 +1,6 @@
 ---
 name: memory
-description: Use when writing, updating or deprecating a memory entry, or looking facts up with the mem CLI: entry format, fitness test, verification rules.
+description: "Use when writing, updating or deprecating a memory entry, or looking facts up with the mem CLI: entry format, fitness test, verification rules."
 ---
 
 # Memory
