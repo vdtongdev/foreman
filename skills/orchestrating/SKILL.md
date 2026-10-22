@@ -1,6 +1,6 @@
 ---
 name: orchestrating
-description: Use in the main session before planning or dispatching any work: the foreman loop, agent routing table, task-brief template and escalation rule.
+description: "Use in the main session before planning or dispatching any work: the foreman loop, agent routing table, task-brief template and escalation rule."
 ---
 
 # Orchestrating

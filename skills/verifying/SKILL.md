@@ -1,6 +1,6 @@
 ---
 name: verifying
-description: Use before asking the user a question or asserting that something works, passes, has a version or has a cause: the evidence rules and report format.
+description: "Use before asking the user a question or asserting that something works, passes, has a version or has a cause: the evidence rules and report format."
 ---
 
 # Verifying
