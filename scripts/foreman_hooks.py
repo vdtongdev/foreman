@@ -85,16 +85,24 @@ def _load_plans(f: Path) -> dict:
         return {}
 
 
+def _is_plan(root: Path, path: Path, require_file: bool = True) -> bool:
+    root, path = root.resolve(), path.resolve()
+    return path.suffix.lower() == ".md" and (path.is_file() or not require_file) and any(
+        _under(path, root / "docs" / p) for p in ("plans", "superpowers/plans"))
+
+
 def plan_gate(payload: dict):
     if "agent_id" in payload or os.environ.get("FOREMAN_SOLO") == "1":
         return None
     ti = payload.get("tool_input") or {}
-    prompt = ti.get("prompt") or ""
-    if ti.get("subagent_type") in READ_ONLY or re.search(r"^Mode:\s*diagnose\b", prompt, re.I | re.M):
+    prompt, agent = ti.get("prompt"), ti.get("subagent_type")
+    prompt = prompt if isinstance(prompt, str) else ""
+    agent = agent if isinstance(agent, str) else ""
+    if agent in READ_ONLY or re.search(r"^Mode:\s*diagnose\b", prompt, re.I | re.M):
         return None
     cwd = Path(payload.get("cwd") or ".")
     root = memory._toplevel(cwd) or cwd
-    if any((root / m.group(0)).is_file() for m in PLAN_RE.finditer(prompt.replace("\\", "/"))):
+    if any(_is_plan(root, root / m.group(0)) for m in PLAN_RE.finditer(prompt.replace("\\", "/"))):
         return None
     f = _plans_file()
     if f and payload.get("session_id") in _load_plans(f):
@@ -109,9 +117,8 @@ def plan_record(payload: dict):
     if "agent_id" in payload or not raw or not f or not payload.get("session_id"):
         return None
     cwd = Path(payload.get("cwd") or ".")
-    root = (memory._toplevel(cwd) or cwd).resolve()
-    path = (cwd / str(raw).replace("\\", "/")).resolve()
-    if path.suffix != ".md" or not any(_under(path, root / "docs" / p) for p in ("plans", "superpowers/plans")):
+    path = cwd / str(raw).replace("\\", "/")
+    if not _is_plan(memory._toplevel(cwd) or cwd, path, False):
         return None
     now = time.time()
     plans = {k: v for k, v in _load_plans(f).items() if isinstance(v, (int, float)) and now - v <= 86400}

@@ -70,3 +70,19 @@ def test_plan_record_ignores_subagent_and_other_paths(tmp_path):
     _record(tmp_path, "src/p.md")
     _record(tmp_path, "docs/plans/p.txt")
     assert _gate(tmp_path) == DENIED
+
+
+def test_traversal_and_bad_types_denied(tmp_path):
+    r = _repo(tmp_path)
+    (r / "docs" / "plans").mkdir(parents=True)
+    (r / "docs" / "specs").mkdir(parents=True)
+    (r / "docs" / "specs" / "s.md").write_text("s")
+    (r / "x.md").write_text("x")
+    for prompt in ("Plan: docs/plans/../../x.md", "Plan: docs/plans/../specs/s.md", 5, ["Mode: diagnose"]):
+        assert _gate(tmp_path, prompt=prompt) == DENIED
+    assert _gate(tmp_path, agent=["a"]) == DENIED
+
+
+def test_plan_record_uppercase_suffix(tmp_path):
+    _record(tmp_path, "docs/plans/B.MD")
+    assert _gate(tmp_path) is None

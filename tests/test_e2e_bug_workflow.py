@@ -34,7 +34,8 @@ def tool_uses(path):
                 ev = json.loads(line)
             except ValueError:
                 continue
-            content = (ev.get("message") or {}).get("content")
+            msg = ev.get("message")
+            content = msg.get("content") if isinstance(msg, dict) else None
             if not isinstance(content, list):
                 continue
             for b in content:
