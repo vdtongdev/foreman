@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+exec uv run --no-project --script "$(dirname "$0")/../scripts/memory.py" "$@"

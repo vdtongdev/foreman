@@ -279,3 +279,97 @@ def select(entries: list[Entry], paths: list[str], topics: list[str],
         if why:
             out.append((e, why))
     return out
+
+
+def _rel(p: str, root: Path | None) -> str:
+    if root:
+        try:
+            return (Path.cwd() / p).resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            pass
+    return p.replace("\\", "/")
+
+
+def _set_status(text: str, new: str | None) -> str:
+    lines, in_md, done = text.splitlines(keepends=True), False, False
+    end = _end(lines)
+    for i in range(1, end):
+        ln = lines[i]
+        if re.match(r"metadata:\s*$", ln):
+            in_md = True
+        elif in_md and ln.startswith("  superseded_by:"):
+            lines[i] = ""
+        elif in_md and ln.startswith("  status:") and not done:
+            nl = ln[len(ln.rstrip("\r\n")):] or "\n"
+            lines[i] = "  status: deprecated" + nl + (f"  superseded_by: {new}{nl}" if new else "")
+            done = True
+    return "".join(lines)
+
+
+def _end(lines: list[str]) -> int:
+    return next(i for i in range(1, len(lines)) if lines[i].strip() == "---")
+
+
+def main(argv: list[str]) -> int:
+    import argparse
+    import sys
+    ap = argparse.ArgumentParser(prog="mem")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    s = sub.add_parser("select")
+    s.add_argument("--path", action="append", default=[])
+    s.add_argument("--topic", action="append", default=[])
+    s.add_argument("--type")
+    s.add_argument("--traps", action="store_true")
+    for c in ("stale", "validate", "index"):
+        sub.add_parser(c)
+    d = sub.add_parser("deprecate")
+    d.add_argument("name")
+    d.add_argument("--by")
+    a = ap.parse_args(argv)
+
+    root = _git_root(Path.cwd())
+    pd = project_dir(Path.cwd())
+    layers = ([("project", pd)] if pd else []) + [("user", user_dir())]
+    loaded = [(n, d_, *load_layer(d_)) for n, d_ in layers]
+
+    if a.cmd == "select":
+        paths = [_rel(p, root) for p in a.path]
+        for n, _, entries, _ in loaded:
+            for e, why in select(entries, paths, a.topic, a.type, a.traps):
+                print(f"[{n}] {e.name} ({why})\n  {e.description}")
+                if e.trap:
+                    print("".join(f"  {ln}\n" for ln in e.body.strip("\n").splitlines()), end="")
+    elif a.cmd == "stale":
+        for n, _, entries, _ in loaded:
+            for e in stale(entries, date.today()):
+                print(f"[{n}] {e.name} (stale_after {e.stale_after})")
+    elif a.cmd == "validate":
+        probs = []
+        for _, _, entries, errs in loaded:
+            names = {e.name for e in entries}
+            probs += errs + [p for e in entries for p in validate(e, names)]
+        for x in probs:
+            print(x)
+        return 1 if probs else 0
+    elif a.cmd == "index":
+        for _, d_, _, _ in loaded:
+            for x in refresh_layer(d_):
+                print(x)
+    else:
+        for _, d_, entries, _ in loaded:
+            hit = next((e for e in entries if e.name == a.name), None)
+            if hit:
+                p = hit.file
+                p.write_text(_set_status(p.read_bytes().decode("utf-8-sig"), a.by),
+                             encoding="utf-8", newline="")
+                for x in refresh_layer(d_):
+                    print(x)
+                return 0
+        print(f"mem: no entry named '{a.name}'", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main(sys.argv[1:]))
