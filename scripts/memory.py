@@ -290,19 +290,29 @@ def _rel(p: str, root: Path | None) -> str:
     return p.replace("\\", "/")
 
 
-def _set_status(text: str, new: str | None) -> str:
-    lines, in_md, done = text.splitlines(keepends=True), False, False
-    end = _end(lines)
-    for i in range(1, end):
+def _set_status(text: str, new: str | None) -> str | None:
+    lines, in_md, last, has = text.splitlines(keepends=True), False, None, False
+    nl = "\n"
+    for i in range(1, _end(lines)):
         ln = lines[i]
-        if re.match(r"metadata:\s*$", ln):
-            in_md = True
-        elif in_md and ln.startswith("  superseded_by:"):
+        if ln[:1] not in " \t" and ln.strip() and not ln.startswith("#"):
+            in_md = bool(re.match(r"metadata:\s*$", ln))
+            continue
+        if not in_md or not ln.strip():
+            continue
+        nl = ln[len(ln.rstrip("\r\n")):] or nl
+        if ln.startswith("  superseded_by:"):
             lines[i] = ""
-        elif in_md and ln.startswith("  status:") and not done:
-            nl = ln[len(ln.rstrip("\r\n")):] or "\n"
-            lines[i] = "  status: deprecated" + nl + (f"  superseded_by: {new}{nl}" if new else "")
-            done = True
+            continue
+        elif ln.startswith("  status:"):
+            lines[i], has = "  status: deprecated" + nl, True
+        last = i
+    if last is None:
+        return None
+    if not has:
+        lines[last] += ("" if lines[last].endswith(nl) else nl) + "  status: deprecated" + nl
+    if new:
+        lines[last] += ("" if lines[last].endswith(nl) else nl) + f"  superseded_by: {new}" + nl
     return "".join(lines)
 
 
@@ -360,8 +370,11 @@ def main(argv: list[str]) -> int:
             hit = next((e for e in entries if e.name == a.name), None)
             if hit:
                 p = hit.file
-                p.write_text(_set_status(p.read_bytes().decode("utf-8-sig"), a.by),
-                             encoding="utf-8", newline="")
+                text = _set_status(p.read_bytes().decode("utf-8-sig"), a.by)
+                if text is None:
+                    print(f"mem: '{a.name}' has no metadata block", file=sys.stderr)
+                    return 1
+                p.write_text(text, encoding="utf-8", newline="")
                 for x in refresh_layer(d_):
                     print(x)
                 return 0

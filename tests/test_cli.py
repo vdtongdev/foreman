@@ -51,3 +51,16 @@ def test_cli_stale_and_no_git(tmp_path, monkeypatch, capsys):
     write(u, "oldie", stale="2020-01-01")
     assert memory.main(["stale"]) == 0
     assert capsys.readouterr().out == "[user] oldie (stale_after 2020-01-01)\n"
+
+
+def test_cli_deprecate_entry_without_status_line(tmp_path, monkeypatch, capsys):
+    u, _ = setup(tmp_path, monkeypatch)
+    write(u, "new")
+    (u / "nost.md").write_text(
+        "---\nname: nost\ndescription: d\nmetadata:\n  type: user\n---\nbody\n")
+    (u / "nometa.md").write_text("---\nname: nometa\ndescription: d\n---\nbody\n")
+    assert memory.main(["deprecate", "nost", "--by", "new"]) == 0
+    e = memory.load_entry(u / "nost.md")
+    assert (e.status, e.superseded_by, e.type) == ("deprecated", "new", "user")
+    assert memory.main(["deprecate", "nometa"]) == 1
+    assert "metadata" in capsys.readouterr().err
