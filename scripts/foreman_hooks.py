@@ -40,7 +40,29 @@ def guard(payload: dict):
             "permissionDecision": "deny", "permissionDecisionReason": DENY}}
 
 
-HOOKS = {"guard": guard}
+def memory_write(payload: dict):
+    raw = (payload.get("tool_input") or {}).get("file_path")
+    if not raw:
+        return None
+    cwd = Path(payload.get("cwd") or ".")
+    path = (cwd / str(raw).replace("\\", "/")).resolve()
+    if path.name == "MEMORY.md":
+        return None
+    layer = next((b for b in (memory.user_dir(), memory.project_dir(cwd))
+                  if b and os.path.normcase(path.parent) == os.path.normcase(b.resolve())), None)
+    if layer is None:
+        return None
+    problems = memory.refresh_layer(layer)
+    if problems:
+        return {"decision": "block", "reason": "Memory entry problems:\n" + "\n".join(problems)}
+    dangling = memory.dangling_links(memory.load_layer(layer)[0])
+    if dangling:
+        return {"hookSpecificOutput": {"hookEventName": "PostToolUse",
+                "additionalContext": "Dangling memory links (write or remove): " + "; ".join(dangling)}}
+    return None
+
+
+HOOKS = {"guard": guard, "memory-write": memory_write}
 
 
 def main(argv):
