@@ -4,7 +4,8 @@ import subprocess
 from conftest import run_hook
 
 REASON = ("Edit work needs a plan: write one under docs/plans/ (superpowers:writing-plans) and name it in the brief, "
-          "or put 'Mode: diagnose' in a diagnosis-only brief (see foreman:orchestrating).")
+          "or put 'Mode: diagnose' in a diagnosis-only brief or 'Mode: git' in a git-only brief "
+          "(see foreman:orchestrating).")
 
 
 def _repo(tmp_path):
@@ -48,6 +49,12 @@ def test_allows_subagent_solo_and_readonly(tmp_path):
 
 def test_allows_diagnose_mode(tmp_path):
     assert _gate(tmp_path, prompt="## Goal\nx\nmode:  Diagnose\n") is None
+
+
+def test_allows_git_mode(tmp_path):
+    assert _gate(tmp_path, agent="foreman:drafter", prompt="## Goal\nx\nmode: Git\n") is None
+    assert _gate(tmp_path, agent="foreman:drafter", prompt="Mode: gitfoo") == DENIED
+    assert _gate(tmp_path, agent="foreman:drafter", prompt="see Mode: git") == DENIED
 
 
 def test_existing_plan_named(tmp_path):

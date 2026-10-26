@@ -61,8 +61,8 @@ The main session is the orchestrator. Each subagent pins its model in its frontm
 | Agent | Model | Effort | Tools | Use for |
 |---|---|---|---|---|
 | `scout` | haiku | low | Read, Grep, Glob, Bash, WebFetch, WebSearch | Finding files, docs, facts and versions; answers with sources. Never edits. |
-| `drafter` | haiku | low | Read, Edit, Write, Grep, Glob | Short text (commit/PR messages, doc snippets); one-line fixes the brief spells out exactly |
-| `implementer` | sonnet | medium | all except Agent | A clear spec or plan task, test-first; reading and synthesizing docs |
+| `drafter` | haiku | low | Read, Edit, Write, Grep, Glob, Bash | Doc and text edits of any length, mechanical edits the brief spells out exactly, and git operations (stage, commit, branch, push) the brief lists. No new logic and no tests. |
+| `implementer` | sonnet | medium | all except Agent | A spec or plan task that changes code behaviour, test-first; reading and synthesizing docs |
 | `verifier` | sonnet | medium | Read, Grep, Glob, Bash | Reviews the diff against the brief and runs the tests; reports PASS/FAIL with output. Never edits. |
 | `expert` | opus | high | all | Bugs that two attempts didn't fix; real architecture tradeoffs. An escalation, not a default |
 
@@ -71,7 +71,7 @@ Only `expert` keeps the Agent tool, and it uses it only to dispatch scouts. Ever
 ## The loop
 
 1. **Clarify and recall.** Ask the user only what no code, doc, memory or command can show. Run `mem select` and paste the matching facts and traps into each task brief.
-2. **Dispatch.** Send each task, with a self-contained brief (Goal, Files, Acceptance, Memory, Report format), to the cheapest agent that fits. Independent tasks run in parallel.
+2. **Dispatch.** Send each task, with a self-contained brief (Goal, Files, Acceptance, Memory, Report format), to its agent. Each plan task carries an `Agent: <name>` line; when writing a plan, tag a task `implementer` if it changes code behaviour or needs a test, otherwise `drafter`. Independent tasks run in parallel.
 3. **Verify.** Every task that changed code goes to the `verifier`.
 4. **On a fail:**
    - The first fail goes back to the same agent with the verifier's report.
@@ -97,7 +97,7 @@ To work solo for a session, set `FOREMAN_SOLO=1` in the environment before start
 
 In the main session, dispatching an edit agent (`implementer`, `drafter`, `expert`, `general-purpose`) is denied unless there is a plan. A `PreToolUse` hook on `Agent|Task` allows the dispatch when any of these holds:
 
-- the brief has a line `Mode: diagnose` (the diagnosis dispatch);
+- the brief has a line `Mode: diagnose` (the diagnosis dispatch) or `Mode: git` (a git-only brief, e.g. commit/push);
 - the brief names an existing plan file, `docs/plans/<file>.md` or `docs/superpowers/plans/<file>.md`;
 - the session already wrote a plan under those folders (a `PostToolUse` hook records it);
 - the agent is read-only (`scout`, `verifier`, `Explore`, `Plan`, ...), the caller is a subagent, or `FOREMAN_SOLO=1` is set.
