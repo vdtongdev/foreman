@@ -16,7 +16,7 @@ Pick the cheapest agent that fits.
 | Agent | Model/effort | Use for |
 |---|---|---|
 | `scout` | haiku low | Finding files, docs, facts, versions; answers with sources |
-| `drafter` | haiku low | Doc and text edits of any length, mechanical edits the brief spells out exactly, and git operations (stage, commit, branch, push) the brief lists. No new logic and no tests. |
+| `drafter` | haiku low | Doc and text edits of any length, mechanical edits the brief spells out exactly, and git operations (stage, commit, branch, push) the brief lists. No new logic and no tests. Loads skills the brief names. |
 | `implementer` | sonnet medium | A spec or plan task that changes code behaviour (TDD); reading and synthesizing docs |
 | `verifier` | sonnet medium | Review the diff against the brief, run the tests; never edits |
 | `expert` | opus high | Bugs two attempts didn't fix; real architecture tradeoffs |
