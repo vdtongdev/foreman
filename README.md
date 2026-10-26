@@ -35,7 +35,7 @@ No GitHub authentication is required for this public repository.
 
 If installation fails, verify that the repository is publicly accessible and that Git, Claude Code, and uv are installed correctly. If you encounter an authentication error, check whether Git is configured to use SSH or a credential helper that requires authentication.
 
-**Auto-update** is off for custom marketplaces, and `marketplace.json` has no field to turn it on. Turn it on once per machine: `/plugin` → Marketplaces → foreman → Enable auto-update. `plugin.json` has no `version` on purpose, so updates follow commits.
+**Auto-update** is off for custom marketplaces, and `marketplace.json` has no field to turn it on. Turn it on once per machine: `/plugin` → Marketplaces → foreman → Enable auto-update. `plugin.json` sets `version`; installs update only when it changes, so bump it with every release.
 
 To turn it off for one project, disable the plugin at local scope.
 
@@ -61,7 +61,7 @@ The main session is the orchestrator. Each subagent pins its model in its frontm
 | Agent | Model | Effort | Tools | Use for |
 |---|---|---|---|---|
 | `scout` | haiku | low | Read, Grep, Glob, Bash, WebFetch, WebSearch | Finding files, docs, facts and versions; answers with sources. Never edits. |
-| `drafter` | haiku | low | Read, Edit, Write, Grep, Glob, Bash | Doc and text edits of any length, mechanical edits the brief spells out exactly, and git operations (stage, commit, branch, push) the brief lists. No new logic and no tests. |
+| `drafter` | haiku | low | Read, Edit, Write, Grep, Glob, Bash, Skill | Doc and text edits of any length, mechanical edits the brief spells out exactly, and git operations (stage, commit, branch, push) the brief lists. No new logic and no tests. Loads skills the brief names. |
 | `implementer` | sonnet | medium | all except Agent | A spec or plan task that changes code behaviour, test-first; reading and synthesizing docs |
 | `verifier` | sonnet | medium | Read, Grep, Glob, Bash | Reviews the diff against the brief and runs the tests; reports PASS/FAIL with output. Never edits. |
 | `expert` | opus | high | all | Bugs that two attempts didn't fix; real architecture tradeoffs. An escalation, not a default |
