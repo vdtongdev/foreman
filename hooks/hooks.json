@@ -13,6 +13,17 @@
         ]
       },
       {
+        "matcher": "Grep|Glob|WebFetch|WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" search-guard || true",
+            "commandWindows": "try { & uv run --no-project --script (Join-Path $env:PLUGIN_ROOT 'scripts/foreman_hooks.py') search-guard } catch {}; exit 0",
+            "timeout": 30
+          }
+        ]
+      },
+      {
         "matcher": "Edit|Write|NotebookEdit",
         "hooks": [
           {

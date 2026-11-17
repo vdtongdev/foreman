@@ -136,6 +136,18 @@ def plan_gate(payload: dict):
     return _deny(PLAN_DENY)
 
 
+SEARCH_DENY = ("Orchestrator doesn't search: dispatch foreman:generalist with a 'Mode: lookup' line "
+               "(reports file:line and quotes), or set FOREMAN_SOLO=1.")
+
+
+def search_guard(payload: dict):
+    if "agent_id" in payload or os.environ.get("FOREMAN_SOLO") == "1":
+        return None
+    if payload.get("tool_name") not in ("Grep", "Glob", "WebFetch", "WebSearch"):
+        return None
+    return _deny(SEARCH_DENY)
+
+
 def plan_record(payload: dict):
     raw = (payload.get("tool_input") or {}).get("file_path")
     f = _plans_file()
@@ -313,7 +325,8 @@ def evidence_check(payload: dict):
 HOOKS = {"guard": guard, "memory-write": memory_write, "session-start": session_start,
          "subagent-start": subagent_start, "trap-inject": trap_inject,
          "evidence-check": evidence_check,
-         "plan-gate": plan_gate, "plan-record": plan_record}
+         "plan-gate": plan_gate, "plan-record": plan_record,
+         "search-guard": search_guard}
 
 
 def main(argv):
