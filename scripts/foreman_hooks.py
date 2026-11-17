@@ -247,12 +247,42 @@ def trap_inject(payload: dict):
     return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": ctx}}
 
 
+def _final_report(payload: dict) -> str:
+    """Handback message from the transcript, else last_assistant_message, else last text block."""
+    handback = last_text = None
+    try:
+        for line in Path(payload["agent_transcript_path"]).read_text(encoding="utf-8").splitlines():
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(rec, dict) or rec.get("type") != "assistant":
+                continue
+            content = (rec.get("message") or {}).get("content")
+            last_text = None
+            for item in content if isinstance(content, list) else []:
+                if not isinstance(item, dict):
+                    continue
+                if item.get("type") == "text" and isinstance(item.get("text"), str):
+                    last_text = item["text"]
+                elif item.get("type") == "tool_use" and item.get("name") == "SubagentHandback":
+                    m = (item.get("input") or {}).get("message")
+                    if isinstance(m, str):
+                        handback = m
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    if handback is not None:
+        return handback
+    msg = payload.get("last_assistant_message")
+    if isinstance(msg, str):
+        return msg
+    return last_text or ""
+
+
 def evidence_check(payload: dict):
     if payload.get("stop_hook_active"):
         return None
-    msg = payload.get("last_assistant_message")
-    if not isinstance(msg, str):
-        msg = ""
+    msg = _final_report(payload)
     if all(re.search(rf"^## {s}", msg, re.MULTILINE | re.IGNORECASE) for s in ("Evidence", "Unverified")):
         return None
     return {"decision": "block", "reason": "Add ## Evidence and ## Unverified sections."}
