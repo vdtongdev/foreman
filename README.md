@@ -2,11 +2,12 @@
 
 A Claude Code plugin that keeps the main session as an orchestrator. It:
 
-- routes work to four model-tiered subagents (generalist on haiku, implementer and verifier on sonnet, expert on opus);
+- routes work to six model-tiered subagents (generalist on haiku; implementer, ui, planner, builder and verifier on sonnet);
+- runs each request through a quick lane or a plan lane (spec → planner → builder), and sends each failure to the step that can fix it;
 - keeps a typed memory knowledge base, validated by hooks;
 - requires `## Evidence` / `## Unverified` sections in every subagent report.
 
-Design: [docs/specs/2026-10-22-foreman-design.md](docs/specs/2026-10-22-foreman-design.md).
+Design: [docs/specs/2026-11-17-foreman-loop-v2-design.md](docs/specs/2026-11-17-foreman-loop-v2-design.md) (loop v2; it wins where it differs from the earlier [foreman design](docs/specs/2026-10-22-foreman-design.md)).
 
 ## Installation
 
@@ -31,6 +32,16 @@ claude plugin install foreman@foreman
 
 No GitHub authentication is required for this public repository.
 
+### Optional: Impeccable
+
+Impeccable gives the `ui` agent its design guidance and the verifier its UI detector. Install it as its own plugin:
+
+```bash
+claude plugin install impeccable --marketplace pbakaus/impeccable
+```
+
+Foreman works without it: the `ui` agent then falls back to implementer behavior and reports "Impeccable not installed". The UI detector check needs Node (`npx`); without it, the check is listed under Unverified.
+
 ### Troubleshooting
 
 If installation fails, verify that the repository is publicly accessible and that Git, Claude Code, and uv are installed correctly. If you encounter an authentication error, check whether Git is configured to use SSH or a credential helper that requires authentication.
@@ -44,7 +55,7 @@ To turn it off for one project, disable the plugin at local scope.
 ```
 foreman/
 ├── .claude-plugin/   plugin.json, marketplace.json (this repo is its own marketplace)
-├── agents/           generalist.md  implementer.md  verifier.md  expert.md
+├── agents/           builder.md  generalist.md  implementer.md  planner.md  ui.md  verifier.md
 ├── skills/           orchestrating/  memory/  verifying/
 ├── hooks/hooks.json  every hook calls scripts/foreman_hooks.py <hook>
 ├── scripts/          foreman_hooks.py (guard, plan-gate, plan-record, trap-inject,
@@ -60,24 +71,36 @@ The main session is the orchestrator. Each subagent pins its model in its frontm
 
 | Agent | Model | Effort | Tools | Use for |
 |---|---|---|---|---|
-| `generalist` | haiku | low | Read, Edit, Write, Grep, Glob, WebFetch, WebSearch, Skill | Bounded lookups, summaries, doc/text edits, and exact mechanical edits. No behavior changes, bug work, test work, or architecture. |
+| `generalist` | haiku | low | Read, Edit, Write, Grep, Glob, WebFetch, WebSearch, Skill | Lookups (`Mode: lookup`: file:line and quotes), summaries, doc/text edits, and exact mechanical edits. No behavior changes, bug work, test work, or architecture. |
 | `implementer` | sonnet | medium | all except Agent | Code behavior changes, tests, bug diagnosis, and complex synthesis |
-| `verifier` | sonnet | medium | Read, Grep, Glob, Bash | Reviews the diff against the brief and runs the tests; reports PASS/FAIL with output. Never edits. |
-| `expert` | opus | high | all | Bugs that two attempts didn't fix; real architecture tradeoffs. Escalation only. |
+| `ui` | sonnet | medium | all except Agent | UI tasks: the implementer plus the Impeccable skill |
+| `planner` | sonnet | medium | all except Agent | Turns an approved spec into a plan in `docs/plans/`; revises tasks on `FAIL: plan` |
+| `builder` | sonnet | medium | all | Runs an approved plan: dispatches the task agents and the verifier, routes failures, returns one summary |
+| `verifier` | sonnet | medium | Read, Grep, Glob, Bash | Reviews the diff against the brief, runs the tests and the UI detector; issues one verdict. Never edits. |
 
-The strong-model orchestrator remains read-only. Send real architecture tradeoffs directly to `expert`; after a second failed attempt, escalate to `expert`. If the expert fails, stop and ask the user with both reports. Generalist lookup briefs may use `Mode: lookup` without a plan; generalist edits still require a plan. Every agent ends its report with `## Evidence` and `## Unverified` sections; a `SubagentStop` hook sends a report without them back once.
+Every agent ends its report with `## Evidence` and `## Unverified` sections; a `SubagentStop` hook sends a report without them back once.
 
 ## The loop
 
-1. **Clarify and recall.** Ask the user only what no code, doc, memory or command can show. Run `mem select` and paste the matching facts and traps into each task brief.
-2. **Dispatch.** Send each task, with a self-contained brief (Goal, Files, Acceptance, Memory, Report format), to its agent. Each plan task carries an `Agent: <name>` line; use `generalist` for bounded lookups and simple edits, `implementer` for behavior changes, tests, bug diagnosis, or complex work, and `expert` for real architecture tradeoffs. Independent tasks run in parallel.
-3. **Verify.** Every task that changed code goes to the `verifier`.
-4. **On a fail:**
-   - The first fail goes back to the same agent with the verifier's report.
-   - A second fail escalates to `expert`. If the expert fails, stop and ask the user with both reports.
-5. **Report.** "Done" is reported only by quoting the verifier's evidence.
+Every request, feature or bug, runs through one loop: request → spec → plan → build → review → loop back on failure → done when the goal is met and the verifier's evidence passes.
 
-**Bug requests** always go through the same workflow, never an ad-hoc fix: the orchestrator's first move is to dispatch the implementer for diagnosis (it doesn't debug the code itself); the implementer reproduces the bug with a failing test and finds the root cause, the orchestrator writes a plan (regression test first, then the fix), and the loop executes it. The verifier checks that the regression test fails on the base commit and passes after the fix.
+1. **Clarify and recall.** Ask the user only what no code, doc, memory or command can show. Run `mem select` and paste the matching facts and traps into each task brief.
+2. **Sort.** A request is quick only if one dispatch finishes it, the few files it touches are known, no behavior decision is open, it doesn't touch auth, secrets, data migrations or a public API, and one command checks it. When unsure, choose quick.
+   - **Quick lane:** `generalist` for text, docs and mechanical edits; `implementer` for a small code change (test first); `ui` for a small UI change. The verifier checks anything that changed code. Two implementer fails, or a `BLOCKED` report, promote the request to the plan lane.
+   - **Plan lane:** the orchestrator writes a short spec with the user (with Security, and Design for UI work); `planner` writes the plan (every task has `Agent:`, `Files:` and acceptance criteria); the orchestrator reviews the plan and dispatches `builder`. The builder runs each task with its agent and the verifier, and returns one summary with the verifier's evidence.
+3. **Bugs** use the same loop. The first move is `implementer` in `Mode: diagnose`: it reproduces the bug with a failing test and reports the root cause. The diagnosis decides the lane, and its regression test becomes the first task or the quick brief's acceptance.
+4. **Verify and route.** The verifier ends every review with exactly one verdict. Each failure goes to the lowest step that can fix it:
+
+   | Verdict | Meaning | Goes to |
+   |---|---|---|
+   | `PASS` | All acceptance criteria met | next task |
+   | `FAIL: impl` | Logic or execution bug in the task's files | same agent |
+   | `FAIL: plan` | The plan is wrong: integration or dependency mismatch, wrong task order, or a diff outside the task's `Files:` | planner |
+   | `FAIL: spec` | Conflicting acceptance criteria or an undefined business rule | orchestrator → user |
+   | `FAIL: env` | Missing tool, service down, network, or a flaky test | orchestrator (does not count toward retry caps) |
+
+   Retry caps: a task that fails `impl` twice is treated as `FAIL: plan`; a planner that revises the same task twice returns to the orchestrator; a problem the orchestrator cannot resolve goes to the user with the reports. An implementer or ui agent may answer a FAIL with `DISPUTE` once per task, with evidence.
+5. **Report.** "Done" is reported only by quoting the verifier's evidence.
 
 At session start, a hook injects a short summary of these rules; the full version is the `foreman:orchestrating` skill. The loop replaces superpowers' subagent-driven-development, which has no per-task model routing; superpowers' brainstorming and writing-plans are still used for planning.
 
@@ -91,14 +114,18 @@ In the main session, `Edit`/`Write`/`NotebookEdit` on files inside the project (
 
 To work solo for a session, set `FOREMAN_SOLO=1` in the environment before starting `claude`.
 
+## Search guard
+
+In the main session, `Grep`, `Glob`, `WebFetch` and `WebSearch` are denied, so the orchestrator never searches itself. `Read` stays allowed for files it can name. For a search, the deny reason tells it to dispatch `generalist` with `Mode: lookup` (Haiku, no plan needed); the report must give `file:line` and exact quotes, not conclusions. Shell searches (`grep`, `find`, `rg` through Bash) are forbidden by rule, not enforced by a hook. Subagents are not affected.
+
 ## Plan gate
 
-In the main session, dispatching an edit agent (`generalist`, `implementer`, `expert`, `general-purpose`) is denied unless there is a plan. A `PreToolUse` hook on `Agent|Task` allows the dispatch when any of these holds:
+In the main session, dispatching an edit agent (`generalist`, `implementer`, `ui`, `builder`, `general-purpose`) is denied unless there is a plan. A `PreToolUse` hook on `Agent|Task` allows the dispatch when any of these holds:
 
-- the generalist brief has a line `Mode: lookup` (read-only lookup); or the brief has `Mode: diagnose` (diagnosis) or `Mode: git` (git-only work);
-- the brief names an existing plan file, `docs/plans/<file>.md` or `docs/superpowers/plans/<file>.md`;
+- the brief has a line `Mode: quick` (quick lane), `Mode: diagnose` (diagnosis) or `Mode: git` (git-only work); or the generalist brief has `Mode: lookup` (read-only lookup);
+- the brief names an existing plan file, `docs/plans/<file>.md` or `docs/superpowers/plans/<file>.md`; a `builder` dispatch also needs every task in that plan to have `Agent:` and `Files:` lines;
 - the session already wrote a plan under those folders (a `PostToolUse` hook records it);
-- the agent is read-only (`verifier`, `Explore`, `Plan`, ...), the caller is a subagent, or `FOREMAN_SOLO=1` is set.
+- the agent is `planner` (it writes the plan), or read-only (`verifier`, `Explore`, `Plan`, ...), or the caller is a subagent, or `FOREMAN_SOLO=1` is set.
 
 ## Memory: `mem`
 
