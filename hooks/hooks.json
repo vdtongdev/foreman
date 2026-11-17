@@ -1,1 +1,99 @@
-{"hooks": {"PreToolUse": [{"matcher": "Agent|Task", "hooks": [{"type": "command", "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" plan-gate || true", "timeout": 30}]},{"matcher": "Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" guard || true", "timeout": 30}]}, {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" trap-inject || true", "timeout": 30}]}], "PostToolUse": [{"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" plan-record || true", "timeout": 30}]},{"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" memory-write || true", "timeout": 30}]}], "SessionStart": [{"hooks": [{"type": "command", "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" session-start || true", "timeout": 30}]}], "SubagentStart": [{"hooks": [{"type": "command", "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" subagent-start || true", "timeout": 30}]}], "SubagentStop": [{"hooks": [{"type": "command", "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" evidence-check || true", "timeout": 30}]}]}}
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" plan-gate || true",
+            "commandWindows": "try { & uv run --no-project --script (Join-Path $env:PLUGIN_ROOT 'scripts/foreman_hooks.py') plan-gate } catch {}; exit 0",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" guard || true",
+            "commandWindows": "try { & uv run --no-project --script (Join-Path $env:PLUGIN_ROOT 'scripts/foreman_hooks.py') guard } catch {}; exit 0",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" trap-inject || true",
+            "commandWindows": "try { & uv run --no-project --script (Join-Path $env:PLUGIN_ROOT 'scripts/foreman_hooks.py') trap-inject } catch {}; exit 0",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" plan-record || true",
+            "commandWindows": "try { & uv run --no-project --script (Join-Path $env:PLUGIN_ROOT 'scripts/foreman_hooks.py') plan-record } catch {}; exit 0",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" memory-write || true",
+            "commandWindows": "try { & uv run --no-project --script (Join-Path $env:PLUGIN_ROOT 'scripts/foreman_hooks.py') memory-write } catch {}; exit 0",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" session-start || true",
+            "commandWindows": "try { & uv run --no-project --script (Join-Path $env:PLUGIN_ROOT 'scripts/foreman_hooks.py') session-start } catch {}; exit 0",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" subagent-start || true",
+            "commandWindows": "try { & uv run --no-project --script (Join-Path $env:PLUGIN_ROOT 'scripts/foreman_hooks.py') subagent-start } catch {}; exit 0",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --script \"${CLAUDE_PLUGIN_ROOT}/scripts/foreman_hooks.py\" evidence-check || true",
+            "commandWindows": "try { & uv run --no-project --script (Join-Path $env:PLUGIN_ROOT 'scripts/foreman_hooks.py') evidence-check } catch {}; exit 0",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

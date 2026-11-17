@@ -67,9 +67,9 @@ def memory_write(payload: dict):
 
 
 PLAN_DENY = ("Edit work needs a plan: write one under docs/plans/ (superpowers:writing-plans) and name it "
-             "in the brief, or put 'Mode: diagnose' in a diagnosis-only brief or 'Mode: git' in a git-only brief "
-             "(see foreman:orchestrating).")
-READ_ONLY = {"foreman:scout", "foreman:verifier", "Explore", "Plan", "claude-code-guide", "statusline-setup"}
+             "in the brief, or put 'Mode: lookup' in a read-only generalist brief, 'Mode: diagnose' in a "
+             "diagnosis-only brief, or 'Mode: git' in a git-only brief (see foreman:orchestrating).")
+READ_ONLY = {"foreman:verifier", "Explore", "Plan", "claude-code-guide", "statusline-setup"}
 PLAN_RE = re.compile(r"docs/(?:superpowers/)?plans/[^\s`'\")]+\.md")
 
 
@@ -100,6 +100,8 @@ def plan_gate(payload: dict):
     prompt = prompt if isinstance(prompt, str) else ""
     agent = agent if isinstance(agent, str) else ""
     if agent in READ_ONLY or re.search(r"^Mode:\s*(?:diagnose|git)\b", prompt, re.I | re.M):
+        return None
+    if agent == "foreman:generalist" and re.search(r"^Mode:\s*lookup\b", prompt, re.I | re.M):
         return None
     cwd = Path(payload.get("cwd") or ".")
     root = memory._toplevel(cwd) or cwd
@@ -135,11 +137,10 @@ ORCHESTRATOR_RULES = """Foreman orchestrator rules (full detail: skill foreman:o
 - Recall: run `mem select --path <files> --topic <topics>` and paste the facts and traps into each task brief.
 - Memory entries follow the foreman:memory skill format (hooks validate them).
 - Briefs are self-contained: goal, files, acceptance criteria, selected facts and traps, report format.
-- Dispatch to the cheapest fitting agent: scout, drafter, implementer, verifier, expert. Plan tasks name theirs (`Agent: <name>` line); dispatch to it. Run independent tasks in parallel.
+- Dispatch to the cheapest fitting agent: generalist for bounded lookups and simple edits, implementer for behavior changes and complex work, verifier for independent review, and expert for bugs unresolved after two attempts or real architecture tradeoffs. Plan tasks name their agent (`Agent: <name>` line); dispatch to it. Run independent tasks in parallel.
 - Execute plans with this loop, not superpowers' Native / executing-plans / subagent-driven-development options (they have no model routing, and Native edits in the main session, which the guard denies).
 - A bug report is always a workflow, never an ad-hoc fix, even if the cause looks obvious: first dispatch implementer (brief has the line `Mode: diagnose`) to reproduce it with a failing test and find the root cause (don't debug it yourself), then write a plan (regression test first), then run this loop. Edit dispatches need a plan named in the brief or written this session (a hook enforces it).
-- Every task that changed code goes to the verifier. First fail: back to the same agent. Second fail: escalate one tier (drafter, implementer, expert).
-- If expert fails, stop and ask the user, with both reports.
+- Every task that changed code goes to the verifier. First fail: back to the same agent. Second fail or real architecture tradeoff: escalate to expert. If expert fails, stop and ask the user with both reports.
 - Claims need evidence observed this session (command plus output, file:line, or URL plus quote); a memory fact counts only if verified: human and not stale.
 - Report "done" only by quoting the verifier's evidence. Write memory for what was learned."""
 

@@ -2,7 +2,7 @@
 
 A Claude Code plugin that keeps the main session as an orchestrator. It:
 
-- routes work to model-tiered subagents (scout and drafter on haiku, implementer and verifier on sonnet, expert on opus);
+- routes work to four model-tiered subagents (generalist on haiku, implementer and verifier on sonnet, expert on opus);
 - keeps a typed memory knowledge base, validated by hooks;
 - requires `## Evidence` / `## Unverified` sections in every subagent report.
 
@@ -44,7 +44,7 @@ To turn it off for one project, disable the plugin at local scope.
 ```
 foreman/
 ├── .claude-plugin/   plugin.json, marketplace.json (this repo is its own marketplace)
-├── agents/           scout.md  drafter.md  implementer.md  verifier.md  expert.md
+├── agents/           generalist.md  implementer.md  verifier.md  expert.md
 ├── skills/           orchestrating/  memory/  verifying/
 ├── hooks/hooks.json  every hook calls scripts/foreman_hooks.py <hook>
 ├── scripts/          foreman_hooks.py (guard, plan-gate, plan-record, trap-inject,
@@ -60,23 +60,21 @@ The main session is the orchestrator. Each subagent pins its model in its frontm
 
 | Agent | Model | Effort | Tools | Use for |
 |---|---|---|---|---|
-| `scout` | haiku | low | Read, Grep, Glob, Bash, WebFetch, WebSearch | Finding files, docs, facts and versions; answers with sources. Never edits. |
-| `drafter` | haiku | low | Read, Edit, Write, Grep, Glob, Bash, Skill | Doc and text edits of any length, mechanical edits the brief spells out exactly, and git operations (stage, commit, branch, push) the brief lists. No new logic and no tests. Loads skills the brief names. |
-| `implementer` | sonnet | medium | all except Agent | A spec or plan task that changes code behaviour, test-first; reading and synthesizing docs |
+| `generalist` | haiku | low | Read, Edit, Write, Grep, Glob, WebFetch, WebSearch, Skill | Bounded lookups, summaries, doc/text edits, and exact mechanical edits. No behavior changes, bug work, test work, or architecture. |
+| `implementer` | sonnet | medium | all except Agent | Code behavior changes, tests, bug diagnosis, and complex synthesis |
 | `verifier` | sonnet | medium | Read, Grep, Glob, Bash | Reviews the diff against the brief and runs the tests; reports PASS/FAIL with output. Never edits. |
-| `expert` | opus | high | all | Bugs that two attempts didn't fix; real architecture tradeoffs. An escalation, not a default |
+| `expert` | opus | high | all | Bugs that two attempts didn't fix; real architecture tradeoffs. Escalation only. |
 
-Only `expert` keeps the Agent tool, and it uses it only to dispatch scouts. Every agent ends its report with `## Evidence` and `## Unverified` sections; a `SubagentStop` hook sends a report without them back once.
+The strong-model orchestrator remains read-only. Send real architecture tradeoffs directly to `expert`; after a second failed attempt, escalate to `expert`. If the expert fails, stop and ask the user with both reports. Generalist lookup briefs may use `Mode: lookup` without a plan; generalist edits still require a plan. Every agent ends its report with `## Evidence` and `## Unverified` sections; a `SubagentStop` hook sends a report without them back once.
 
 ## The loop
 
 1. **Clarify and recall.** Ask the user only what no code, doc, memory or command can show. Run `mem select` and paste the matching facts and traps into each task brief.
-2. **Dispatch.** Send each task, with a self-contained brief (Goal, Files, Acceptance, Memory, Report format), to its agent. Each plan task carries an `Agent: <name>` line; when writing a plan, tag a task `implementer` if it changes code behaviour or needs a test, otherwise `drafter`. Independent tasks run in parallel.
+2. **Dispatch.** Send each task, with a self-contained brief (Goal, Files, Acceptance, Memory, Report format), to its agent. Each plan task carries an `Agent: <name>` line; use `generalist` for bounded lookups and simple edits, `implementer` for behavior changes, tests, bug diagnosis, or complex work, and `expert` for real architecture tradeoffs. Independent tasks run in parallel.
 3. **Verify.** Every task that changed code goes to the `verifier`.
 4. **On a fail:**
    - The first fail goes back to the same agent with the verifier's report.
-   - A second fail on the same task escalates one tier: `drafter` → `implementer` → `expert`. `scout` doesn't escalate; it is re-briefed, or the lookup goes to `implementer`.
-   - If `expert` fails, the orchestrator stops and asks the user, with both reports.
+   - A second fail escalates to `expert`. If the expert fails, stop and ask the user with both reports.
 5. **Report.** "Done" is reported only by quoting the verifier's evidence.
 
 **Bug requests** always go through the same workflow, never an ad-hoc fix: the orchestrator's first move is to dispatch the implementer for diagnosis (it doesn't debug the code itself); the implementer reproduces the bug with a failing test and finds the root cause, the orchestrator writes a plan (regression test first, then the fix), and the loop executes it. The verifier checks that the regression test fails on the base commit and passes after the fix.
@@ -95,12 +93,12 @@ To work solo for a session, set `FOREMAN_SOLO=1` in the environment before start
 
 ## Plan gate
 
-In the main session, dispatching an edit agent (`implementer`, `drafter`, `expert`, `general-purpose`) is denied unless there is a plan. A `PreToolUse` hook on `Agent|Task` allows the dispatch when any of these holds:
+In the main session, dispatching an edit agent (`generalist`, `implementer`, `expert`, `general-purpose`) is denied unless there is a plan. A `PreToolUse` hook on `Agent|Task` allows the dispatch when any of these holds:
 
-- the brief has a line `Mode: diagnose` (the diagnosis dispatch) or `Mode: git` (a git-only brief, e.g. commit/push);
+- the generalist brief has a line `Mode: lookup` (read-only lookup); or the brief has `Mode: diagnose` (diagnosis) or `Mode: git` (git-only work);
 - the brief names an existing plan file, `docs/plans/<file>.md` or `docs/superpowers/plans/<file>.md`;
 - the session already wrote a plan under those folders (a `PostToolUse` hook records it);
-- the agent is read-only (`scout`, `verifier`, `Explore`, `Plan`, ...), the caller is a subagent, or `FOREMAN_SOLO=1` is set.
+- the agent is read-only (`verifier`, `Explore`, `Plan`, ...), the caller is a subagent, or `FOREMAN_SOLO=1` is set.
 
 ## Memory: `mem`
 

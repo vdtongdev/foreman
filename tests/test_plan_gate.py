@@ -4,7 +4,8 @@ import subprocess
 from conftest import run_hook
 
 REASON = ("Edit work needs a plan: write one under docs/plans/ (superpowers:writing-plans) and name it in the brief, "
-          "or put 'Mode: diagnose' in a diagnosis-only brief or 'Mode: git' in a git-only brief "
+          "or put 'Mode: lookup' in a read-only generalist brief, 'Mode: diagnose' in a "
+          "diagnosis-only brief, or 'Mode: git' in a git-only brief "
           "(see foreman:orchestrating).")
 
 
@@ -36,14 +37,16 @@ DENIED = {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecis
 
 
 def test_denies_edit_agents_without_plan(tmp_path):
-    for a in ("foreman:implementer", "general-purpose", "foreman:drafter"):
+    for a in ("foreman:implementer", "foreman:expert", "general-purpose", "foreman:generalist"):
         assert _gate(tmp_path, agent=a) == DENIED
 
 
 def test_allows_subagent_solo_and_readonly(tmp_path):
     assert _gate(tmp_path, agent_id="a1") is None
     assert _gate(tmp_path, solo="1") is None
-    assert _gate(tmp_path, agent="foreman:scout") is None
+    assert _gate(tmp_path, agent="foreman:generalist", prompt="Mode: lookup\nFind a file.") is None
+    assert _gate(tmp_path, agent="foreman:generalist", prompt="see Mode: lookup") == DENIED
+    assert _gate(tmp_path, agent="foreman:generalist", prompt="Mode: lookupfoo") == DENIED
     assert _gate(tmp_path, agent="foreman:verifier") is None
 
 
@@ -52,9 +55,9 @@ def test_allows_diagnose_mode(tmp_path):
 
 
 def test_allows_git_mode(tmp_path):
-    assert _gate(tmp_path, agent="foreman:drafter", prompt="## Goal\nx\nmode: Git\n") is None
-    assert _gate(tmp_path, agent="foreman:drafter", prompt="Mode: gitfoo") == DENIED
-    assert _gate(tmp_path, agent="foreman:drafter", prompt="see Mode: git") == DENIED
+    assert _gate(tmp_path, agent="foreman:generalist", prompt="## Goal\nx\nmode: Git\n") is None
+    assert _gate(tmp_path, agent="foreman:generalist", prompt="Mode: gitfoo") == DENIED
+    assert _gate(tmp_path, agent="foreman:generalist", prompt="see Mode: git") == DENIED
 
 
 def test_existing_plan_named(tmp_path):

@@ -3,7 +3,7 @@ from pathlib import Path
 import memory
 
 ROOT = Path(__file__).resolve().parent.parent
-NAMES = ["scout", "drafter", "implementer", "verifier", "expert"]
+NAMES = ["generalist", "implementer", "verifier", "expert"]
 
 
 def agents():
@@ -17,19 +17,21 @@ def agents():
 def test_agent_models():
     got = {n: (m["model"], m["effort"]) for n, (m, _) in agents().items()}
     assert got == {
-        "scout": ("haiku", "low"), "drafter": ("haiku", "low"),
+        "generalist": ("haiku", "low"),
         "implementer": ("sonnet", "medium"), "verifier": ("sonnet", "medium"),
         "expert": ("opus", "high"),
     }
     assert all(m["name"] == n and m["description"] for n, (m, _) in agents().items())
 
 
-def test_only_expert_has_agent_tool():
+def test_agents_have_expected_tool_boundaries():
     a = agents()
     assert not any("Agent" in str(m.get("tools", "")) for m, _ in a.values())
     assert "Agent" in a["implementer"][0]["disallowedTools"]
+    assert "Skill" in a["generalist"][0]["tools"]
+    assert "Bash" not in a["generalist"][0]["tools"]
     assert "tools" not in a["expert"][0] and "disallowedTools" not in a["expert"][0]
-    assert sorted(n for n, (m, _) in a.items() if "tools" in m) == ["drafter", "scout", "verifier"]
+    assert sorted(n for n, (m, _) in a.items() if "tools" in m) == ["generalist", "verifier"]
 
 
 def test_every_agent_requires_evidence_sections():
@@ -77,3 +79,5 @@ def test_agents_describe_bug_handling():
     assert "bug" in impl and "failing test" in impl and "root cause" in impl
     ver = a["verifier"][1].lower()
     assert "regression test" in ver and "base commit" in ver and "git worktree" in ver
+    expert = a["expert"][1].lower()
+    assert "after two failed attempts" in expert and "real architecture tradeoff" in expert
