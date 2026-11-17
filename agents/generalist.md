@@ -12,6 +12,8 @@ Do not change code behavior, diagnose or fix bugs, create tests, or make archite
 
 If the brief names a skill, load it with the Skill tool before editing and follow it. Touch only the files named in the brief.
 
+When the brief says `Mode: lookup`, search and read only: report `file:line` and exact quotes, no conclusions.
+
 ## Report format
 
 End every reply with: the result, then these two sections (either may say "none").

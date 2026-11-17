@@ -3,7 +3,7 @@ from pathlib import Path
 import memory
 
 ROOT = Path(__file__).resolve().parent.parent
-NAMES = ["generalist", "implementer", "verifier", "expert"]
+NAMES = ["generalist", "implementer", "ui", "planner", "builder", "verifier"]
 
 
 def agents():
@@ -19,7 +19,7 @@ def test_agent_models():
     assert got == {
         "generalist": ("haiku", "low"),
         "implementer": ("sonnet", "medium"), "verifier": ("sonnet", "medium"),
-        "expert": ("opus", "high"),
+        "ui": ("sonnet", "medium"), "planner": ("sonnet", "medium"), "builder": ("sonnet", "medium"),
     }
     assert all(m["name"] == n and m["description"] for n, (m, _) in agents().items())
 
@@ -27,10 +27,12 @@ def test_agent_models():
 def test_agents_have_expected_tool_boundaries():
     a = agents()
     assert not any("Agent" in str(m.get("tools", "")) for m, _ in a.values())
-    assert "Agent" in a["implementer"][0]["disallowedTools"]
+    for n in ("implementer", "ui", "planner"):
+        assert "Agent" in a[n][0]["disallowedTools"], n
+    assert "tools" not in a["builder"][0] and "disallowedTools" not in a["builder"][0]
     assert "Skill" in a["generalist"][0]["tools"]
     assert "Bash" not in a["generalist"][0]["tools"]
-    assert "tools" not in a["expert"][0] and "disallowedTools" not in a["expert"][0]
+    assert not (ROOT / "agents" / "expert.md").exists()
     assert sorted(n for n, (m, _) in a.items() if "tools" in m) == ["generalist", "verifier"]
 
 
@@ -79,5 +81,33 @@ def test_agents_describe_bug_handling():
     assert "bug" in impl and "failing test" in impl and "root cause" in impl
     ver = a["verifier"][1].lower()
     assert "regression test" in ver and "base commit" in ver and "git worktree" in ver
-    expert = a["expert"][1].lower()
-    assert "after two failed attempts" in expert and "real architecture tradeoff" in expert
+
+
+def test_verifier_lists_verdicts():
+    body = agents()["verifier"][1]
+    for w in ["PASS", "FAIL: impl", "FAIL: plan", "FAIL: spec", "FAIL: env",
+              "git diff --name-only", "npx impeccable detect --json", "Security"]:
+        assert w in body, w
+
+
+def test_task_agents_scope_and_dispute():
+    a = agents()
+    for n in ("implementer", "ui"):
+        assert "BLOCKED: plan" in a[n][1] and "DISPUTE" in a[n][1], n
+
+
+def test_ui_loads_impeccable():
+    meta, body = agents()["ui"]
+    assert "impeccable" in body and "Impeccable not installed" in body
+    assert "tools" not in meta or "Skill" in meta["tools"]
+
+
+def test_builder_routes_failures():
+    body = agents()["builder"][1]
+    for w in ["FAIL: impl", "FAIL: plan", "FAIL: spec", "FAIL: env", "twice", "foreman:planner"]:
+        assert w in body, w
+
+
+def test_generalist_lookup_reports_quotes():
+    body = agents()["generalist"][1]
+    assert "Mode: lookup" in body and "file:line" in body
