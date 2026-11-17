@@ -122,7 +122,7 @@ In the main session, `Grep`, `Glob`, `WebFetch` and `WebSearch` are denied, so t
 
 In the main session, dispatching an edit agent (`generalist`, `implementer`, `ui`, `builder`, `general-purpose`) is denied unless there is a plan. A `PreToolUse` hook on `Agent|Task` allows the dispatch when any of these holds:
 
-- the brief has a line `Mode: quick` (quick lane), `Mode: diagnose` (diagnosis) or `Mode: git` (git-only work); or the generalist brief has `Mode: lookup` (read-only lookup);
+- the brief has a line `Mode: quick` (quick lane; accepted only for `generalist`, `implementer` and `ui`), `Mode: diagnose` (diagnosis) or `Mode: git` (git-only work); or the generalist brief has `Mode: lookup` (read-only lookup);
 - the brief names an existing plan file, `docs/plans/<file>.md` or `docs/superpowers/plans/<file>.md`; a `builder` dispatch also needs every task in that plan to have `Agent:` and `Files:` lines;
 - the session already wrote a plan under those folders (a `PostToolUse` hook records it);
 - the agent is `planner` (it writes the plan), or read-only (`verifier`, `Explore`, `Plan`, ...), or the caller is a subagent, or `FOREMAN_SOLO=1` is set.

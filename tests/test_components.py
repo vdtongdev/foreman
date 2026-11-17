@@ -92,7 +92,7 @@ def test_agents_describe_bug_handling():
 def test_verifier_lists_verdicts():
     body = agents()["verifier"][1]
     for w in ["PASS", "FAIL: impl", "FAIL: plan", "FAIL: spec", "FAIL: env",
-              "git diff --name-only", "npx impeccable detect --json", "Security", "Impeccable", "first line"]:
+              "git diff --name-only", "npx impeccable detect --json", "Security", "Impeccable", "first line", "docs/plans/"]:
         assert w in body, w
     assert "Unverified" in body
 
@@ -101,6 +101,7 @@ def test_task_agents_scope_and_dispute():
     a = agents()
     for n in ("implementer", "ui"):
         assert "BLOCKED: plan" in a[n][1] and "DISPUTE" in a[n][1], n
+        assert "docs/plans/" in a[n][1], n
 
 
 def test_ui_loads_impeccable():
