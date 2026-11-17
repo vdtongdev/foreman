@@ -40,17 +40,25 @@ def parse_frontmatter(text: str) -> tuple[dict, str]:
     except StopIteration:
         raise ValueError("line 1: missing closing ---") from None
     meta: dict = {}
-    cur = None
+    cur = lst = None
     for i in range(1, end):
         raw = lines[i]
         n = i + 1
         if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        li = re.match(r"    - +(.*\S)\s*$", raw)
+        if li and lst is not None:
+            try:
+                lst.append(_scalar(li[1]))
+            except ValueError as e:
+                raise ValueError(f"line {n}: {e}") from None
             continue
         m = re.match(r"( *)([A-Za-z_][\w-]*):(?:\s+(.*)|\s*)$", raw)
         if not m:
             raise ValueError(f"line {n}: unsupported syntax: {raw.strip()}")
         indent, key, val = len(m[1]), m[2], m[3]
         target = meta
+        lst = None
         if indent:
             if cur is None or indent != 2:
                 raise ValueError(f"line {n}: bad indentation")
@@ -62,6 +70,9 @@ def parse_frontmatter(text: str) -> tuple[dict, str]:
         else:
             cur = None
         if val is None or not val.strip() or val.lstrip().startswith("#"):
+            if indent == 2:
+                target[key] = lst = []
+                continue
             raise ValueError(f"line {n}: nested mappings deeper than one level")
         try:
             target[key] = _scalar(val)

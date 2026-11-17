@@ -67,9 +67,12 @@ def memory_write(payload: dict):
 
 
 PLAN_DENY = ("Edit work needs a plan: write one under docs/plans/ (superpowers:writing-plans) and name it "
-             "in the brief, or put 'Mode: diagnose' in a diagnosis-only brief or 'Mode: git' in a git-only brief "
-             "(see foreman:orchestrating).")
-READ_ONLY = {"foreman:scout", "foreman:verifier", "Explore", "Plan", "claude-code-guide", "statusline-setup"}
+             "in the brief, or put 'Mode: quick' in a small task brief, 'Mode: lookup' in a read-only "
+             "generalist brief, 'Mode: diagnose' in a diagnosis-only brief, or 'Mode: git' in a git-only "
+             "brief (see foreman:orchestrating).")
+BUILDER_DENY = ("Builder needs a named plan (Plan: docs/plans/<file>.md) whose every task has "
+                "Agent: and Files: lines.")
+READ_ONLY = {"foreman:verifier", "foreman:planner", "Explore", "Plan", "claude-code-guide", "statusline-setup"}
 PLAN_RE = re.compile(r"docs/(?:superpowers/)?plans/[^\s`'\")]+\.md")
 
 
@@ -92,6 +95,18 @@ def _is_plan(root: Path, path: Path, require_file: bool = True) -> bool:
         _under(path, root / "docs" / p) for p in ("plans", "superpowers/plans"))
 
 
+def _plan_tasks_ok(text: str) -> bool:
+    parts = re.split(r"^#{2,4} Task\b", text, flags=re.M)[1:]
+    return bool(parts) and all(
+        re.search(r"^\s*(\*\*)?Agent:(\*\*)?\s*\S", p, re.M) and re.search(r"^\s*(\*\*)?Files:(\*\*)?", p, re.M)
+        for p in parts)
+
+
+def _deny(reason: str) -> dict:
+    return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
+            "permissionDecision": "deny", "permissionDecisionReason": reason}}
+
+
 def plan_gate(payload: dict):
     if "agent_id" in payload or os.environ.get("FOREMAN_SOLO") == "1":
         return None
@@ -101,15 +116,36 @@ def plan_gate(payload: dict):
     agent = agent if isinstance(agent, str) else ""
     if agent in READ_ONLY or re.search(r"^Mode:\s*(?:diagnose|git)\b", prompt, re.I | re.M):
         return None
+    if agent == "foreman:generalist" and re.search(r"^Mode:\s*lookup\b", prompt, re.I | re.M):
+        return None
+    if agent in ("foreman:generalist", "foreman:implementer", "foreman:ui") and re.search(
+            r"^Mode:\s*quick\b", prompt, re.I | re.M):
+        return None
     cwd = Path(payload.get("cwd") or ".")
     root = memory._toplevel(cwd) or cwd
-    if any(_is_plan(root, root / m.group(0)) for m in PLAN_RE.finditer(prompt.replace("\\", "/"))):
+    named = [root / m.group(0) for m in PLAN_RE.finditer(prompt.replace("\\", "/"))]
+    if agent == "foreman:builder":
+        if any(_is_plan(root, p) and _plan_tasks_ok(p.read_text(encoding="utf-8")) for p in named):
+            return None
+        return _deny(BUILDER_DENY)
+    if any(_is_plan(root, p) for p in named):
         return None
     f = _plans_file()
     if f and payload.get("session_id") in _load_plans(f):
         return None
-    return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
-            "permissionDecision": "deny", "permissionDecisionReason": PLAN_DENY}}
+    return _deny(PLAN_DENY)
+
+
+SEARCH_DENY = ("Orchestrator doesn't search: dispatch foreman:generalist with a 'Mode: lookup' line "
+               "(reports file:line and quotes), or set FOREMAN_SOLO=1.")
+
+
+def search_guard(payload: dict):
+    if "agent_id" in payload or os.environ.get("FOREMAN_SOLO") == "1":
+        return None
+    if payload.get("tool_name") not in ("Grep", "Glob", "WebFetch", "WebSearch"):
+        return None
+    return _deny(SEARCH_DENY)
 
 
 def plan_record(payload: dict):
@@ -131,15 +167,16 @@ def plan_record(payload: dict):
 
 ORCHESTRATOR_RULES = """Foreman orchestrator rules (full detail: skill foreman:orchestrating):
 - You orchestrate; you do not edit project files (a guard denies it). Dispatch a subagent instead.
-- Clarify: ask the user only what no code, doc, memory, web page or command can show; say what you already checked.
-- Recall: run `mem select --path <files> --topic <topics>` and paste the facts and traps into each task brief.
-- Memory entries follow the foreman:memory skill format (hooks validate them).
-- Briefs are self-contained: goal, files, acceptance criteria, selected facts and traps, report format.
-- Dispatch to the cheapest fitting agent: scout, drafter, implementer, verifier, expert. Plan tasks name theirs (`Agent: <name>` line); dispatch to it. Run independent tasks in parallel.
-- Execute plans with this loop, not superpowers' Native / executing-plans / subagent-driven-development options (they have no model routing, and Native edits in the main session, which the guard denies).
-- A bug report is always a workflow, never an ad-hoc fix, even if the cause looks obvious: first dispatch implementer (brief has the line `Mode: diagnose`) to reproduce it with a failing test and find the root cause (don't debug it yourself), then write a plan (regression test first), then run this loop. Edit dispatches need a plan named in the brief or written this session (a hook enforces it).
-- Every task that changed code goes to the verifier. First fail: back to the same agent. Second fail: escalate one tier (drafter, implementer, expert).
-- If expert fails, stop and ask the user, with both reports.
+- Searches (Grep, Glob, web) are denied to you: dispatch `generalist` with `Mode: lookup`; it reports file:line and quotes. Read and codegraph stay allowed.
+- Clarify only what no code, doc, memory, web page or command can show. Run `mem select --path <files> --topic <topics>` and paste the facts and traps into each brief; briefs are self-contained (goal, files, acceptance, memory, report format).
+- Sort each request. Quick lane (one dispatch, few known files, no open decisions, no auth/secrets/migration/public API, one check): brief has `Mode: quick`, goes to generalist, implementer or ui, then the verifier. Otherwise plan lane: you write the spec (with Security), `foreman:planner` writes the plan, you review it, then `foreman:builder` runs it and returns one summary.
+- Plans written by the planner are not session plans: every non-quick edit brief names its plan (`Plan: docs/plans/<file>.md`); a hook enforces it.
+- Execute with this loop, not superpowers' Native / executing-plans / subagent-driven-development options (no model routing; Native edits in the main session, which the guard denies).
+- A bug is always a workflow, never an ad-hoc fix: dispatch implementer with `Mode: diagnose` (failing test plus root cause; don't debug it yourself), then sort the fix by lane, reusing that test.
+- The verifier ends with one verdict: PASS, FAIL: impl (same agent), FAIL: plan (planner), FAIL: spec (you, then the user), FAIL: env (you).
+- Retries: two impl fails on a task count as plan; the planner revises a task twice, then you; if you cannot resolve it, stop and ask the user with the reports. env does not count.
+- Quick task failing twice or BLOCKED: promote to the plan lane with a short spec and both failure reports.
+- Relay "Impeccable not installed" from a ui or verifier report to the user once per session.
 - Claims need evidence observed this session (command plus output, file:line, or URL plus quote); a memory fact counts only if verified: human and not stale.
 - Report "done" only by quoting the verifier's evidence. Write memory for what was learned."""
 
@@ -246,21 +283,59 @@ def trap_inject(payload: dict):
     return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": ctx}}
 
 
+def _final_report(payload: dict) -> str:
+    """Handback message from the transcript, else last_assistant_message, else last text block."""
+    handback = last_text = None
+    try:
+        for line in Path(payload["agent_transcript_path"]).read_text(encoding="utf-8").splitlines():
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(rec, dict) or rec.get("type") != "assistant":
+                continue
+            content = (rec.get("message") or {}).get("content")
+            last_text = None
+            for item in content if isinstance(content, list) else []:
+                if not isinstance(item, dict):
+                    continue
+                if item.get("type") == "text" and isinstance(item.get("text"), str):
+                    last_text = item["text"]
+                elif item.get("type") == "tool_use" and item.get("name") == "SubagentHandback":
+                    m = (item.get("input") or {}).get("message")
+                    if isinstance(m, str):
+                        handback = m
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    if handback is not None:
+        return handback
+    msg = payload.get("last_assistant_message")
+    if isinstance(msg, str):
+        return msg
+    return last_text or ""
+
+
+VERDICT_REASON = ("Verifier must give exactly one verdict line: "
+                  "PASS, FAIL: impl, FAIL: plan, FAIL: spec or FAIL: env.")
+VERDICT_RE = re.compile(r"^(PASS|FAIL: (impl|plan|spec|env))\b", re.MULTILINE)
+
+
 def evidence_check(payload: dict):
     if payload.get("stop_hook_active"):
         return None
-    msg = payload.get("last_assistant_message")
-    if not isinstance(msg, str):
-        msg = ""
-    if all(re.search(rf"^## {s}", msg, re.MULTILINE | re.IGNORECASE) for s in ("Evidence", "Unverified")):
-        return None
-    return {"decision": "block", "reason": "Add ## Evidence and ## Unverified sections."}
+    msg = _final_report(payload)
+    if not all(re.search(rf"^## {s}", msg, re.MULTILINE | re.IGNORECASE) for s in ("Evidence", "Unverified")):
+        return {"decision": "block", "reason": "Add ## Evidence and ## Unverified sections."}
+    if payload.get("agent_type") in ("foreman:verifier", "verifier") and len(VERDICT_RE.findall(msg)) != 1:
+        return {"decision": "block", "reason": VERDICT_REASON}
+    return None
 
 
 HOOKS = {"guard": guard, "memory-write": memory_write, "session-start": session_start,
          "subagent-start": subagent_start, "trap-inject": trap_inject,
          "evidence-check": evidence_check,
-         "plan-gate": plan_gate, "plan-record": plan_record}
+         "plan-gate": plan_gate, "plan-record": plan_record,
+         "search-guard": search_guard}
 
 
 def main(argv):

@@ -53,6 +53,9 @@ def test_session_start_rules_override_superpowers_execution(tmp_path):
 def test_orchestrator_rules_cover_bugs_within_line_cap():
     from foreman_hooks import ORCHESTRATOR_RULES
     assert "bug" in ORCHESTRATOR_RULES and len(ORCHESTRATOR_RULES.splitlines()) <= 15
+    for w in ("quick", "planner", "builder"):
+        assert w in ORCHESTRATOR_RULES, w
+    assert "expert" not in ORCHESTRATOR_RULES
 
 
 def test_session_start_silent_in_subagent(tmp_path):

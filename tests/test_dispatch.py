@@ -19,6 +19,12 @@ def test_hooks_json_fail_open_and_known_hooks():
     cmds = [h for g in d["hooks"].values() for e in g for h in e["hooks"]]
     assert cmds
     for h in cmds:
-        assert h["command"].endswith("|| true") and h["timeout"] == 30
-        assert h["command"].split("||")[0].split()[-1] in foreman_hooks.HOOKS
+        command = h["command"]
+        windows = h["commandWindows"]
+        hook = command.split("||")[0].split()[-1]
+        assert command.endswith("|| true") and h["timeout"] == 30
+        assert hook in foreman_hooks.HOOKS
+        assert windows.startswith("try { & uv run --no-project --script (Join-Path $env:PLUGIN_ROOT")
+        assert windows.endswith(f" {hook} }} catch {{}}; exit 0")
+        assert "||" not in windows
 

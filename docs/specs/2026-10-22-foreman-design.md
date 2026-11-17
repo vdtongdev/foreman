@@ -55,7 +55,7 @@ foreman/
 ├── .claude-plugin/
 │   ├── plugin.json
 │   └── marketplace.json
-├── agents/        scout.md  drafter.md  implementer.md  verifier.md  expert.md
+├── agents/        generalist.md  implementer.md  verifier.md  expert.md
 ├── skills/
 │   ├── orchestrating/SKILL.md   the loop, routing table, task brief template, escalation
 │   ├── memory/SKILL.md          entry format, fitness test, when to write, how to verify
@@ -89,13 +89,12 @@ The model the user talks to: the session model (currently opus, effort medium). 
 
 | Agent | model | effort | tools | Use for |
 |---|---|---|---|---|
-| `scout` | haiku | low | Read, Grep, Glob, Bash, WebFetch, WebSearch | Finding files, docs, facts, versions; answers with sources |
-| `drafter` | haiku | low | Read, Edit, Write, Grep, Glob | Short text (commit/PR messages, doc snippets); one-line fixes the brief spells out exactly |
-| `implementer` | sonnet | medium | all except Agent | Implementing a clear spec or plan task (TDD); reading and synthesizing docs |
+| `generalist` | haiku | low | Read, Edit, Write, Grep, Glob, WebFetch, WebSearch, Skill | Bounded lookups, summaries, doc/text edits, and exact mechanical edits. No behavior changes, bug work, tests, or architecture |
+| `implementer` | sonnet | medium | all except Agent | Code behavior changes, tests, bug diagnosis, and complex synthesis |
 | `verifier` | sonnet | medium | Read, Grep, Glob, Bash | Reviewing the diff against the brief, running the tests; pass/fail with output. Never edits |
 | `expert` | opus | high | all | Bugs that two attempts didn't fix; real architecture tradeoffs |
 
-- Only `expert` keeps the Agent tool (for scouting).
+- The strong-model orchestrator remains read-only. The expert is called only for bugs unresolved after two attempts or real architecture tradeoffs.
 - Every agent prompt ends with the report format from section 8.
 
 ### 5.3 Loop and escalation
@@ -104,8 +103,8 @@ The model the user talks to: the session model (currently opus, effort medium). 
 2. Every task that changed code goes to the `verifier` with the brief and the diff range.
 3. On a fail:
    - The first fail goes back to the same agent, with the verifier's report.
-   - A second fail on the same task moves up one tier: `drafter` → `implementer` → `expert`. `scout` doesn't escalate; a failed lookup is re-briefed or answered by `implementer`.
-4. If `expert` fails, the orchestrator stops and asks the user, with both reports.
+   - A second fail escalates to the expert.
+4. If the expert fails, the orchestrator stops and asks the user, with both reports.
 
 ### 5.4 Guard
 
@@ -120,7 +119,7 @@ Bash writes aren't classified (too fragile). The orchestrating skill forbids the
 
 ### 5.5 Plan gate
 
-`PreToolUse`, matcher `Agent|Task`. Edit work is dispatched only against a plan. Allow when any holds: `agent_id` present; `FOREMAN_SOLO=1`; `subagent_type` is `foreman:scout`, `foreman:verifier`, `Explore`, `Plan`, `claude-code-guide` or `statusline-setup`; the prompt has a line `Mode: diagnose`; the prompt names an existing `docs/plans/*.md` or `docs/superpowers/plans/*.md`; or this `session_id` wrote a plan this session. Otherwise deny with "Edit work needs a plan: write one under docs/plans/ (superpowers:writing-plans) and name it in the brief, or put 'Mode: diagnose' in a diagnosis-only brief (see foreman:orchestrating)."
+`PreToolUse`, matcher `Agent|Task`. Edit work is dispatched only against a plan. Allow when any holds: `agent_id` present; `FOREMAN_SOLO=1`; `subagent_type` is `foreman:verifier`, `Explore`, `Plan`, `claude-code-guide` or `statusline-setup`; the generalist brief has an anchored line `Mode: lookup`; the prompt has a line `Mode: diagnose`; the prompt names an existing `docs/plans/*.md` or `docs/superpowers/plans/*.md`; or this `session_id` wrote a plan this session. Git-only briefs with `Mode: git` are also exempt. Otherwise deny with "Edit work needs a plan: write one under docs/plans/ (superpowers:writing-plans) and name it in the brief, or use the documented `Mode: lookup`, `Mode: diagnose`, or `Mode: git` exemption (see foreman:orchestrating)."
 
 A `PostToolUse` hook `plan-record` (matcher `Write|Edit`) records `session_id` in `plans.json` (plugin data dir, 24 h prune) when the main session writes a `.md` under `docs/plans/` or `docs/superpowers/plans/`.
 
@@ -215,7 +214,7 @@ smallie's 11 `.antipatterns/AP-*.yaml` records become project-layer trap entries
 ## 7. Relation to installed plugins
 
 - **superpowers.** The orchestrator still uses brainstorming, writing-plans, systematic-debugging and verification-before-completion. The foreman loop replaces `subagent-driven-development` for execution, because that skill has no per-task model routing. The orchestrating skill says so explicitly.
-- **ponytail.** Unchanged. Its "smallest change" rules apply inside implementer and expert.
+- **ponytail.** Unchanged. Its "smallest change" rules apply inside generalist, implementer, and expert.
 - **codegraph.** Agents use it as now (global CLAUDE.md, loaded in subagents too).
 
 ## 8. Verify before asking or asserting
