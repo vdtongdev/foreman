@@ -108,3 +108,54 @@ def test_project_dir_slug_replaces_every_non_alnum(tmp_path, monkeypatch):
     monkeypatch.setenv("FOREMAN_HOME", str(tmp_path))
     monkeypatch.setattr(memory, "_git_root", lambda cwd: PureWindowsPath(r"C:\a_b\slug_test.x"))
     assert memory.project_dir(tmp_path) == tmp_path / ".claude/projects/C--a-b-slug-test-x/memory"
+
+
+REWRITTEN = """---
+name: nested-subagent-dispatch
+description: d
+metadata:
+  node_type: memory
+  type: reference
+  paths:
+    - agents/builder.md
+    - scripts/foreman_hooks.py
+  topics:
+    - subagents
+    - builder
+    - hooks
+  status: active
+  verified: model
+  verified_on: 2026-11-17
+  stale_after: 2027-05-17
+  originSessionId: 70d15277-58c7-4b5f-babf-7b0415ce59e1
+  modified: 2026-11-17T11:02:13.687Z
+---
+Short body.
+"""
+
+
+def test_parses_claude_code_rewritten_frontmatter(tmp_path):
+    p = tmp_path / "nested-subagent-dispatch.md"
+    p.write_text(REWRITTEN, encoding="utf-8")
+    e = memory.load_entry(p)
+    assert e.paths == ["agents/builder.md", "scripts/foreman_hooks.py"]
+    assert e.topics == ["subagents", "builder", "hooks"]
+    assert memory.validate(e, {e.name}) == []
+
+
+def test_deprecate_block_list_entry(tmp_path):
+    p = tmp_path / "nested-subagent-dispatch.md"
+    p.write_text(REWRITTEN, encoding="utf-8")
+    p.write_text(memory._set_status(REWRITTEN, None), encoding="utf-8")
+    e = memory.load_entry(p)
+    assert e.status == "deprecated"
+    assert e.paths == ["agents/builder.md", "scripts/foreman_hooks.py"]
+
+
+@pytest.mark.parametrize("fm", [
+    "name: a\nmetadata:\n  - x\n",
+    "name: a\nmetadata:\n  type: reference\n    - x\n",
+])
+def test_stray_list_item_rejected(fm):
+    with pytest.raises(ValueError):
+        memory.parse_frontmatter(f"---\n{fm}---\n")
