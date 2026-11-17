@@ -167,14 +167,16 @@ def plan_record(payload: dict):
 
 ORCHESTRATOR_RULES = """Foreman orchestrator rules (full detail: skill foreman:orchestrating):
 - You orchestrate; you do not edit project files (a guard denies it). Dispatch a subagent instead.
-- Clarify: ask the user only what no code, doc, memory, web page or command can show; say what you already checked.
-- Recall: run `mem select --path <files> --topic <topics>` and paste the facts and traps into each task brief.
-- Memory entries follow the foreman:memory skill format (hooks validate them).
-- Briefs are self-contained: goal, files, acceptance criteria, selected facts and traps, report format.
-- Dispatch to the cheapest fitting agent: generalist for bounded lookups and simple edits, implementer for behavior changes and complex work, verifier for independent review, and expert for bugs unresolved after two attempts or real architecture tradeoffs. Plan tasks name their agent (`Agent: <name>` line); dispatch to it. Run independent tasks in parallel.
-- Execute plans with this loop, not superpowers' Native / executing-plans / subagent-driven-development options (they have no model routing, and Native edits in the main session, which the guard denies).
-- A bug report is always a workflow, never an ad-hoc fix, even if the cause looks obvious: first dispatch implementer (brief has the line `Mode: diagnose`) to reproduce it with a failing test and find the root cause (don't debug it yourself), then write a plan (regression test first), then run this loop. Edit dispatches need a plan named in the brief or written this session (a hook enforces it).
-- Every task that changed code goes to the verifier. First fail: back to the same agent. Second fail or real architecture tradeoff: escalate to expert. If expert fails, stop and ask the user with both reports.
+- Searches (Grep, Glob, web) are denied to you: dispatch `generalist` with `Mode: lookup`; it reports file:line and quotes. Read and codegraph stay allowed.
+- Clarify only what no code, doc, memory, web page or command can show. Run `mem select --path <files> --topic <topics>` and paste the facts and traps into each brief; briefs are self-contained (goal, files, acceptance, memory, report format).
+- Sort each request. Quick lane (one dispatch, few known files, no open decisions, no auth/secrets/migration/public API, one check): brief has `Mode: quick`, goes to generalist, implementer or ui, then the verifier. Otherwise plan lane: you write the spec (with Security), `foreman:planner` writes the plan, you review it, then `foreman:builder` runs it and returns one summary.
+- Plans written by the planner are not session plans: every non-quick edit brief names its plan (`Plan: docs/plans/<file>.md`); a hook enforces it.
+- Execute with this loop, not superpowers' Native / executing-plans / subagent-driven-development options (no model routing; Native edits in the main session, which the guard denies).
+- A bug is always a workflow, never an ad-hoc fix: dispatch implementer with `Mode: diagnose` (failing test plus root cause; don't debug it yourself), then sort the fix by lane, reusing that test.
+- The verifier ends with one verdict: PASS, FAIL: impl (same agent), FAIL: plan (planner), FAIL: spec (you, then the user), FAIL: env (you).
+- Retries: two impl fails on a task count as plan; the planner revises a task twice, then you; if you cannot resolve it, stop and ask the user with the reports. env does not count.
+- Quick task failing twice or BLOCKED: promote to the plan lane with a short spec and both failure reports.
+- Relay "Impeccable not installed" from a ui or verifier report to the user once per session.
 - Claims need evidence observed this session (command plus output, file:line, or URL plus quote); a memory fact counts only if verified: human and not stale.
 - Report "done" only by quoting the verifier's evidence. Write memory for what was learned."""
 

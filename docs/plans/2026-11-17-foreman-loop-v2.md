@@ -120,6 +120,21 @@
 - [ ] **Step 4:** Run the same command; expected: PASS.
 - [ ] **Step 5:** Commit `Search guard: orchestrator delegates searches to generalist`.
 
+### Task 4b: Fix evidence check reading the wrong field (bug)
+
+**Agent:** implementer
+**Files:** Modify `scripts/foreman_hooks.py` (`evidence_check`, new `_final_report`); Test `tests/test_evidence.py`
+
+Diagnosis (confirmed this session): since CLI v2.1.271 a subagent delivers its report as the `input.message` of a `SubagentHandback` tool_use; `last_assistant_message` then holds only closing text, if any (code.claude.com/docs/en/hooks, SubagentStop). `evidence_check` (`scripts/foreman_hooks.py:250-258`) reads only `last_assistant_message`, so every subagent's first stop is blocked — seen in this session's transcript `agent-a982f9a99a49da96e.jsonl`: SubagentHandback with both sections, then `hook_blocking_error` "Add ## Evidence and ## Unverified sections.".
+
+**Interfaces — Produces:** `_final_report(payload: dict) -> str` — the text Task 5 checks. Order: the `input.message` of the last `SubagentHandback` tool_use in `agent_transcript_path` (JSONL; only `type == "assistant"` records, `message.content[]` items); else `last_assistant_message` if a str; else the last `type == "text"` block of the last assistant record; else `""`. Unreadable/missing transcript → fall through to the next source, never raise.
+
+- [ ] **Step 1:** Keep the regression test `test_reads_final_message_from_agent_transcript` (already written, fails). Add `test_handback_wins_over_closing_text` (payload `last_assistant_message: "Done."`, transcript handback with both sections → no output) and `test_missing_transcript_falls_back` (`agent_transcript_path` to a missing file, `last_assistant_message` with both sections → no output; without them → block).
+- [ ] **Step 2:** Run `uv run --with pytest pytest tests/test_evidence.py -q`; expected: the new tests FAIL.
+- [ ] **Step 3:** Implement `_final_report`; `evidence_check` uses it.
+- [ ] **Step 4:** Run the same command; expected: PASS. Verifier confirms the regression test fails on base commit `0992217` and passes on head.
+- [ ] **Step 5:** Commit `Evidence check: read the SubagentHandback report`.
+
 ### Task 5: Verdict check
 
 **Agent:** implementer
@@ -132,14 +147,18 @@
   - `test_verdict_only_for_verifier`: `agent_type: "foreman:implementer"`, message with sections and no verdict → no output.
   - `test_verdict_rejects_unknown_label`: `"FAIL: logic"` only → block.
 - [ ] **Step 2:** Run `uv run --with pytest pytest tests/test_evidence.py -q`; expected: FAIL.
-- [ ] **Step 3:** Implement: after the sections check, for verifier agent types count lines matching `^(PASS|FAIL: (impl|plan|spec|env))\b` (multiline); block unless exactly 1. `stop_hook_active` still short-circuits.
+- [ ] **Step 3:** Implement: after the sections check, on the text from `_final_report` (Task 4b), for verifier agent types count lines matching `^(PASS|FAIL: (impl|plan|spec|env))\b` (multiline); block unless exactly 1. `stop_hook_active` still short-circuits.
 - [ ] **Step 4:** Run the same command; expected: PASS.
 - [ ] **Step 5:** Commit `Evidence check: verifier must give one verdict`.
 
 ### Task 6: Orchestrator rules and orchestrating skill
 
 **Agent:** implementer
-**Files:** Modify `scripts/foreman_hooks.py` (`ORCHESTRATOR_RULES`), `skills/orchestrating/SKILL.md`; Test `tests/test_components.py`, `tests/test_context_hooks.py`
+**Files:** Modify `scripts/foreman_hooks.py` (`ORCHESTRATOR_RULES`), `skills/orchestrating/SKILL.md`, `agents/verifier.md` (review follow-ups below); Test `tests/test_components.py`, `tests/test_context_hooks.py`
+
+Review follow-ups folded in (from Task 2–5 verifier reports):
+- Plans written by the `planner` subagent are not recorded as session plans (`plan_record` skips `agent_id`), so every non-quick edit brief must name its plan with `Plan:`; state this in the skill and rules.
+- `agents/verifier.md`: a missing Impeccable (not only missing `npx`) → detector check under Unverified (spec §8). Put the verdict on the report's first line, and quote command output in code blocks or `- ` bullets so no quoted line starts with `PASS`/`FAIL:` (the verdict hook counts such lines). Extend `test_verifier_lists_verdicts` to assert `Impeccable` appears with `Unverified` and `first line`.
 
 - [ ] **Step 1: Update tests:**
   - `test_bug_requests_section_placement_and_content`: headings order becomes `## Lanes` < `## Failure routing` < `## Bug requests` < `## Task brief template`; bug section contains `mode: diagnose`, `implementer`, `regression test`, `verifier`, `base commit`, `quick`, `docs/plans`; no `expert` anywhere in the skill.

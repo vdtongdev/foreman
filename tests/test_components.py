@@ -66,13 +66,19 @@ def _skill():
 
 def test_bug_requests_section_placement_and_content():
     text = _skill()
-    i, j, k = (text.find(h) for h in ("\n## Escalation", "\n## Bug requests", "\n## Task brief template"))
-    assert 0 < i < j < k
-    sec = text[j:k].lower()
-    for word in ["mode: diagnose", "implementer", "writing-plans", "regression test", "verifier", "base commit", "expert"]:
+    i, j, k, m = (text.find(h) for h in ("\n## Lanes", "\n## Failure routing", "\n## Bug requests", "\n## Task brief template"))
+    assert 0 < i < j < k < m
+    sec = text[k:m].lower()
+    for word in ["mode: diagnose", "implementer", "regression test", "verifier", "base commit", "quick", "docs/plans"]:
         assert word in sec, word
-    assert "may skip the plan" not in sec and "trivial" not in sec
-    assert "yourself" in sec and "docs/plans" in sec
+    assert "expert" not in text.lower()
+
+
+def test_skill_covers_loop():
+    text = _skill()
+    for w in ["Mode: quick", "foreman:planner", "foreman:builder", "PASS", "FAIL: impl", "FAIL: plan",
+              "FAIL: spec", "FAIL: env", "twice", "Mode: lookup", "Grep"]:
+        assert w in text, w
 
 
 def test_agents_describe_bug_handling():
@@ -86,8 +92,9 @@ def test_agents_describe_bug_handling():
 def test_verifier_lists_verdicts():
     body = agents()["verifier"][1]
     for w in ["PASS", "FAIL: impl", "FAIL: plan", "FAIL: spec", "FAIL: env",
-              "git diff --name-only", "npx impeccable detect --json", "Security"]:
+              "git diff --name-only", "npx impeccable detect --json", "Security", "Impeccable", "first line"]:
         assert w in body, w
+    assert "Unverified" in body
 
 
 def test_task_agents_scope_and_dispute():
