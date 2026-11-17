@@ -67,9 +67,12 @@ def memory_write(payload: dict):
 
 
 PLAN_DENY = ("Edit work needs a plan: write one under docs/plans/ (superpowers:writing-plans) and name it "
-             "in the brief, or put 'Mode: lookup' in a read-only generalist brief, 'Mode: diagnose' in a "
-             "diagnosis-only brief, or 'Mode: git' in a git-only brief (see foreman:orchestrating).")
-READ_ONLY = {"foreman:verifier", "Explore", "Plan", "claude-code-guide", "statusline-setup"}
+             "in the brief, or put 'Mode: quick' in a small task brief, 'Mode: lookup' in a read-only "
+             "generalist brief, 'Mode: diagnose' in a diagnosis-only brief, or 'Mode: git' in a git-only "
+             "brief (see foreman:orchestrating).")
+BUILDER_DENY = ("Builder needs a named plan (Plan: docs/plans/<file>.md) whose every task has "
+                "Agent: and Files: lines.")
+READ_ONLY = {"foreman:verifier", "foreman:planner", "Explore", "Plan", "claude-code-guide", "statusline-setup"}
 PLAN_RE = re.compile(r"docs/(?:superpowers/)?plans/[^\s`'\")]+\.md")
 
 
@@ -92,6 +95,18 @@ def _is_plan(root: Path, path: Path, require_file: bool = True) -> bool:
         _under(path, root / "docs" / p) for p in ("plans", "superpowers/plans"))
 
 
+def _plan_tasks_ok(text: str) -> bool:
+    parts = re.split(r"^#{2,4} Task\b", text, flags=re.M)[1:]
+    return bool(parts) and all(
+        re.search(r"^\s*(\*\*)?Agent:(\*\*)?\s*\S", p, re.M) and re.search(r"^\s*(\*\*)?Files:(\*\*)?", p, re.M)
+        for p in parts)
+
+
+def _deny(reason: str) -> dict:
+    return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
+            "permissionDecision": "deny", "permissionDecisionReason": reason}}
+
+
 def plan_gate(payload: dict):
     if "agent_id" in payload or os.environ.get("FOREMAN_SOLO") == "1":
         return None
@@ -103,15 +118,22 @@ def plan_gate(payload: dict):
         return None
     if agent == "foreman:generalist" and re.search(r"^Mode:\s*lookup\b", prompt, re.I | re.M):
         return None
+    if agent in ("foreman:generalist", "foreman:implementer", "foreman:ui") and re.search(
+            r"^Mode:\s*quick\b", prompt, re.I | re.M):
+        return None
     cwd = Path(payload.get("cwd") or ".")
     root = memory._toplevel(cwd) or cwd
-    if any(_is_plan(root, root / m.group(0)) for m in PLAN_RE.finditer(prompt.replace("\\", "/"))):
+    named = [root / m.group(0) for m in PLAN_RE.finditer(prompt.replace("\\", "/"))]
+    if agent == "foreman:builder":
+        if any(_is_plan(root, p) and _plan_tasks_ok(p.read_text(encoding="utf-8")) for p in named):
+            return None
+        return _deny(BUILDER_DENY)
+    if any(_is_plan(root, p) for p in named):
         return None
     f = _plans_file()
     if f and payload.get("session_id") in _load_plans(f):
         return None
-    return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
-            "permissionDecision": "deny", "permissionDecisionReason": PLAN_DENY}}
+    return _deny(PLAN_DENY)
 
 
 def plan_record(payload: dict):
