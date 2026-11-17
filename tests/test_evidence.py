@@ -79,3 +79,51 @@ def test_missing_transcript_falls_back(tmp_path):
                                              "agent_transcript_path": missing})
     assert rc == 0
     assert json.loads(out) == {"decision": "block", "reason": REASON}
+
+
+VERDICT_REASON = ("Verifier must give exactly one verdict line: "
+                  "PASS, FAIL: impl, FAIL: plan, FAIL: spec or FAIL: env.")
+TAIL = "\n## Evidence\n- x\n## Unverified\n- none"
+
+
+def _verifier(msg, agent_type="foreman:verifier"):
+    return run_hook("evidence-check", {"agent_type": agent_type, "last_assistant_message": msg})
+
+
+def test_verdict_required_for_verifier():
+    for t in ("foreman:verifier", "verifier"):
+        out, _, rc = _verifier("Looks fine." + TAIL, t)
+        assert rc == 0
+        assert json.loads(out) == {"decision": "block", "reason": VERDICT_REASON}
+
+
+def test_verdict_exactly_one():
+    out, _, _ = _verifier("PASS\nFAIL: impl" + TAIL)
+    assert json.loads(out) == {"decision": "block", "reason": VERDICT_REASON}
+
+
+def test_verdict_ok():
+    for v in ("FAIL: plan\n...", "PASS"):
+        out, _, rc = _verifier(v + TAIL)
+        assert rc == 0
+        assert out == ""
+
+
+def test_verdict_only_for_verifier():
+    out, _, _ = _verifier("Done." + TAIL, "foreman:implementer")
+    assert out == ""
+
+
+def test_verdict_rejects_unknown_label():
+    out, _, _ = _verifier("FAIL: logic" + TAIL)
+    assert json.loads(out) == {"decision": "block", "reason": VERDICT_REASON}
+
+
+def test_verdict_ignores_passed_lines():
+    out, _, _ = _verifier("PASS\nPASSED tests/x.py::t" + TAIL)
+    assert out == ""
+
+
+def test_sections_reason_wins_over_verdict():
+    out, _, _ = _verifier("Looks fine.")
+    assert json.loads(out) == {"decision": "block", "reason": REASON}

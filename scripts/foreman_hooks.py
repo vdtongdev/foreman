@@ -313,13 +313,20 @@ def _final_report(payload: dict) -> str:
     return last_text or ""
 
 
+VERDICT_REASON = ("Verifier must give exactly one verdict line: "
+                  "PASS, FAIL: impl, FAIL: plan, FAIL: spec or FAIL: env.")
+VERDICT_RE = re.compile(r"^(PASS|FAIL: (impl|plan|spec|env))\b", re.MULTILINE)
+
+
 def evidence_check(payload: dict):
     if payload.get("stop_hook_active"):
         return None
     msg = _final_report(payload)
-    if all(re.search(rf"^## {s}", msg, re.MULTILINE | re.IGNORECASE) for s in ("Evidence", "Unverified")):
-        return None
-    return {"decision": "block", "reason": "Add ## Evidence and ## Unverified sections."}
+    if not all(re.search(rf"^## {s}", msg, re.MULTILINE | re.IGNORECASE) for s in ("Evidence", "Unverified")):
+        return {"decision": "block", "reason": "Add ## Evidence and ## Unverified sections."}
+    if payload.get("agent_type") in ("foreman:verifier", "verifier") and len(VERDICT_RE.findall(msg)) != 1:
+        return {"decision": "block", "reason": VERDICT_REASON}
+    return None
 
 
 HOOKS = {"guard": guard, "memory-write": memory_write, "session-start": session_start,
