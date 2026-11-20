@@ -64,7 +64,7 @@ Current version: 0.2.1. See [CHANGELOG.md](CHANGELOG.md) for details; versioning
 foreman/
 ├── .claude-plugin/   plugin.json, marketplace.json (this repo is its own marketplace)
 ├── agents/           builder.md  generalist.md  implementer.md  planner.md  ui.md  verifier.md
-├── skills/           orchestrating/  memory/  releasing/  verifying/
+├── skills/           antipatterns/  orchestrating/  memory/  releasing/  verifying/
 ├── hooks/hooks.json  every hook calls scripts/foreman_hooks.py <hook>
 ├── scripts/          foreman_hooks.py (guard, plan-gate, plan-record, trap-inject,
 │                     memory-write, session-start, subagent-start, evidence-check)  memory.py (memory library + mem CLI)
@@ -86,7 +86,7 @@ The main session is the orchestrator. Each subagent pins its model in its frontm
 | `builder` | sonnet | medium | all | Runs an approved plan: dispatches the task agents and the verifier, routes failures, returns one summary |
 | `verifier` | sonnet | medium | Read, Grep, Glob, Bash | Reviews the diff against the brief, runs the tests and the UI detector; issues one verdict. Never edits. |
 
-Every agent ends its report with `## Evidence` and `## Unverified` sections; a `SubagentStop` hook sends a report without them back once.
+Every agent ends its report with `## Evidence` and `## Unverified` sections; a `SubagentStop` hook sends a report without them back once. The implementer and ui load `antipatterns` (scope, code smells, design patterns, agent workflow) before writing code, and the verifier fails only its clear-cut items.
 
 ## The loop
 

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `antipatterns` skill (scope, code smells, design patterns, agent workflow) that the implementer and ui follow and the verifier enforces only for clear-cut items; memory entry-fitness rules extended.
 - Every request works in its own git worktree and branch, and a branch guard denies subagent edits on the default branch (fails open on any git error).
 - Worktrees get their own codegraph index when the project already uses codegraph, and cleanup uninits it before removing the worktree.
 

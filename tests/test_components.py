@@ -42,9 +42,48 @@ def test_every_agent_requires_evidence_sections():
 
 
 def test_skills_have_frontmatter():
-    for s in ["orchestrating", "memory", "verifying", "releasing"]:
+    for s in ["orchestrating", "memory", "verifying", "releasing", "antipatterns"]:
         meta, _ = memory.parse_frontmatter((ROOT / "skills" / s / "SKILL.md").read_text(encoding="utf-8"))
         assert meta["name"] == s and meta["description"]
+
+
+KARPATHY = Path.home() / ".claude/plugins/marketplaces/karpathy-skills/skills/karpathy-guidelines/SKILL.md"
+
+
+def test_antipatterns_skill_content():
+    raw = (ROOT / "skills" / "antipatterns" / "SKILL.md").read_text(encoding="utf-8")
+    meta, body = memory.parse_frontmatter(raw)
+    assert meta["name"] == "antipatterns" and meta["description"]
+    lines = raw.splitlines()
+    assert [l for l in lines if l.startswith("## ")] == [
+        "## Scope and simplicity", "## Code smells", "## Design patterns", "## Agent workflow"]
+    assert "karpathy-guidelines" in raw and "MIT" in raw
+    assert 40 <= len(lines) <= 80
+    for group in re.split(r"^## ", body, flags=re.M)[1:]:
+        bullets = [l for l in group.splitlines() if l.startswith("- ")]
+        assert len(bullets) >= 4, group.splitlines()[0]
+        assert all(": " in b for b in bullets), group.splitlines()[0]
+    for w in ("50 lines", "3 nesting", "third copy", "2 or more concrete variants", "MVC", "dispatch",
+              "already quoted", "intent", "projectPath", "by layer", "default branch", "git add -A"):
+        assert w in raw, w
+
+
+def test_antipatterns_no_verbatim_karpathy():
+    import pytest
+    if not KARPATHY.exists():
+        pytest.skip("karpathy-guidelines not installed")
+    mine = (ROOT / "skills" / "antipatterns" / "SKILL.md").read_text(encoding="utf-8")
+    for l in KARPATHY.read_text(encoding="utf-8").splitlines():
+        l = l.strip()
+        if len(l) >= 30:
+            assert l not in mine, l
+
+
+def test_memory_skill_fitness_rules():
+    t = (ROOT / "skills" / "memory" / "SKILL.md").read_text(encoding="utf-8")
+    for w in ("dead weight", "share a root rule", "moved past"):
+        assert w in t, w
+    assert t.count("recurrent") == 1
 
 
 def test_releasing_skill_content():
@@ -234,3 +273,40 @@ def test_agents_codegraph_cli_only_in_worktrees():
         for line in f.read_text(encoding="utf-8").splitlines():
             if "projectPath" in line and "worktree" in line.lower():
                 assert "never" in line, (f.name, line)
+
+
+def test_task_agents_load_antipatterns():
+    for n in ("implementer", "ui"):
+        t = _read("agents", f"{n}.md")
+        assert "Load the `foreman:antipatterns` skill with the Skill tool before writing code" in t, n
+        for s in ("BLOCKED: plan", "DISPUTE", "Worktree:", "codegraph explore"):
+            assert s in t, (n, s)
+    assert "business rules go in the model" in _read("agents", "implementer.md")
+    assert "business rules stay in the model or controller layer" in _read("agents", "ui.md")
+
+
+def test_verifier_antipattern_fail_rules():
+    t = _read("agents", "verifier.md")
+    for s in ("interface or factory with one implementation", "added magic number in logic",
+              "duplicated block of 3 or more copies", "function over 80 lines",
+              "only for items introduced by the diff", "not a FAIL",
+              "FAIL: impl", "FAIL: plan", "FAIL: spec", "FAIL: env", "PASS"):
+        assert s in t, s
+
+
+def test_orchestrating_references_antipatterns():
+    t = _read("skills", "orchestrating", "SKILL.md")
+    assert t.count("foreman:antipatterns") == 1
+    line = next(l for l in t.splitlines() if "foreman:antipatterns" in l)
+    assert "agent-workflow group" in line
+
+
+def test_antipatterns_in_readme_and_changelog():
+    r = _read("README.md")
+    row = next(l for l in r.splitlines() if l.startswith("├── skills/"))
+    assert "antipatterns/" in row
+    assert "load `antipatterns`" in r
+    c = _read("CHANGELOG.md")
+    unreleased = c.split("## [Unreleased]")[1].split("\n## [0.")[0]
+    added = unreleased.split("### Added")[1].split("\n### ")[0]
+    assert "antipatterns" in added

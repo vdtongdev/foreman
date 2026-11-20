@@ -30,7 +30,7 @@ Sort every request. It is quick only if all hold: one dispatch finishes it and t
 2. **Plan lane.** Write the spec with the user (`superpowers:brainstorming`) with a Security section (threats, auth, input, secrets, data exposure; "None applicable" stated) and, for UI, a Design section (`PRODUCT.md`, `DESIGN.md`). Dispatch `foreman:planner` with the spec path. Read the plan; send it back if it misses spec items (each Security item is an acceptance criterion, each UI task has the detector command). Then dispatch `foreman:builder` with `Plan: docs/plans/<file>.md`; the builder creates the worktree before task 1 and copies the untracked spec and plan into it (you still write specs and plans in the main checkout and never run git writes); every task needs `Agent:` and `Files:` lines (a hook checks). Planner-written plans are not recorded as session plans, so name the plan in every non-quick edit brief.
 3. **Promotion.** A promoted quick task gets a short spec: the original request, both failure reports and the open question that made it non-quick. Give the reports to the planner too.
 
-Report "done" only by quoting the verifier's evidence. Write memory (`foreman:memory`) for lessons worth keeping. Relay "Impeccable not installed" (from a `ui` or verifier report) to the user once per session; foreman works without it.
+Report "done" only by quoting the verifier's evidence. The agent-workflow group of `foreman:antipatterns` lists the orchestrator mistakes to avoid. Write memory (`foreman:memory`) for lessons worth keeping. Relay "Impeccable not installed" (from a `ui` or verifier report) to the user once per session; foreman works without it.
 
 ## Failure routing
 
