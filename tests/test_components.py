@@ -119,3 +119,11 @@ def test_builder_routes_failures():
 def test_generalist_lookup_reports_quotes():
     body = agents()["generalist"][1]
     assert "Mode: lookup" in body and "file:line" in body
+
+
+def test_agents_follow_mvc_layering():
+    a = agents()
+    for n in ("planner", "implementer", "ui", "verifier"):
+        assert "mvc" in a[n][1].lower(), n
+    assert "by feature" in a["planner"][1].lower()
+    assert "layer" in a["verifier"][1].lower()
