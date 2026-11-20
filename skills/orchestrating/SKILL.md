@@ -56,7 +56,7 @@ A described bug follows the same workflow as a feature. Never fix it ad hoc, eve
 
 ## Task brief template
 
-Self-contained; the agent has no other context.
+Self-contained; the agent has no other context. In the main session run git reads only; at a milestone dispatch the release cut as `Mode: git` (see `foreman:releasing`), and if the project has no `CHANGELOG.md`, offer adopting one once.
 
 ```
 ## Goal

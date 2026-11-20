@@ -176,6 +176,7 @@ ORCHESTRATOR_RULES = """Foreman orchestrator rules (full detail: skill foreman:o
 - The verifier ends with one verdict: PASS, FAIL: impl (same agent), FAIL: plan (planner), FAIL: spec (you, then the user), FAIL: env (you).
 - Retries: two impl fails on a task count as plan; the planner revises a task twice, then you; if you cannot resolve it, stop and ask the user with the reports. env does not count.
 - Quick task failing twice or BLOCKED: promote to the plan lane with a short spec and both failure reports.
+- Main session runs git read commands only (status, log, diff, show, branch, tag list, plain fetch); every git write goes to a `Mode: git` dispatch with intent in the brief; see skill foreman:releasing.
 - Relay "Impeccable not installed" from a ui or verifier report to the user once per session.
 - Claims need evidence observed this session (command plus output, file:line, or URL plus quote); a memory fact counts only if verified: human and not stale.
 - Report "done" only by quoting the verifier's evidence. Write memory for what was learned."""
