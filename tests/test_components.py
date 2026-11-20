@@ -189,3 +189,48 @@ def test_verifier_fails_default_branch():
     t = _read("agents", "verifier.md")
     assert "default branch" in t and "FAIL: impl" in t
     assert "default branch is `FAIL: impl`" in t
+
+
+NEVER_PP = "never pass a worktree as `projectPath`"
+
+
+def test_releasing_codegraph_rules():
+    t = _read("skills", "releasing", "SKILL.md")
+    for w in ("codegraph init", "codegraph sync", "codegraph uninit", "git push origin --delete",
+              NEVER_PP, "`codegraph explore` with the worktree as the working directory",
+              "only if the main checkout has `.codegraph/`", "a project without `.codegraph/` gets nothing",
+              "the main index must not contain `.worktrees/`",
+              "tracked `.gitignore` is never edited"):
+        assert w in t, w
+
+
+def test_releasing_cleanup_order():
+    t = _read("skills", "releasing", "SKILL.md")
+    assert "`gh pr merge --merge` without `--delete-branch`" in t
+    assert "remote branch" in t and "while a worktree holds the local" in t
+    assert "daemon" not in t
+    pos = [t.index(s) for s in ("codegraph uninit", "git worktree remove", "branch -d", "git push origin --delete")]
+    assert pos == sorted(pos)
+    assert "never -D" in t and "without --force" in t and "--ff-only" in t
+    assert "git diff --no-index" in t
+    assert "delete the branch after merge" not in t
+
+
+def test_agents_codegraph_cli_only_in_worktrees():
+    for n in ("implementer", "ui", "verifier"):
+        t = _read("agents", f"{n}.md")
+        assert "codegraph explore" in t and NEVER_PP in t, n
+    for n in ("implementer", "ui"):
+        assert "codegraph sync" in _read("agents", f"{n}.md"), n
+    g = _read("agents", "generalist.md")
+    assert "Read only inside worktrees" in g and NEVER_PP in g
+    assert "does not run `codegraph sync`" in g
+    assert g.count("codegraph sync") == 1
+    for n in ("builder", "implementer"):
+        assert "codegraph init" in _read("agents", f"{n}.md"), n
+    files = [ROOT / "agents" / f"{n}.md" for n in ("builder", "generalist", "implementer", "planner", "ui", "verifier")]
+    files.append(ROOT / "skills" / "releasing" / "SKILL.md")
+    for f in files:
+        for line in f.read_text(encoding="utf-8").splitlines():
+            if "projectPath" in line and "worktree" in line.lower():
+                assert "never" in line, (f.name, line)

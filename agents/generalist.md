@@ -12,6 +12,8 @@ Do not change code behavior, diagnose or fix bugs, create tests, or make archite
 
 If the brief names a skill, load it with the Skill tool before editing and follow it. Touch only the files named in the brief, and only inside the brief's `Worktree:` path; if a brief has edits but no `Worktree:`, report `BLOCKED: plan` (you have no Bash to create one).
 
+You have no Bash, so you use Read only inside worktrees: never pass a worktree as `projectPath` to the codegraph MCP tool, and this agent does not run `codegraph sync`.
+
 When the brief says `Mode: lookup`, search and read only: report `file:line` and exact quotes, no conclusions.
 
 ## Report format

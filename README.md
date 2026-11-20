@@ -124,7 +124,7 @@ To work solo for a session, set `FOREMAN_SOLO=1` in the environment before start
 
 ## Branch guard
 
-PreToolUse on `Edit|Write|NotebookEdit`, subagents only. It denies an edit when the edited file's own checkout is on the default branch (`origin/HEAD`, else `main` or `master`). It allows `docs/specs/`, `docs/plans/`, memory folders, detached HEAD, files outside git and `FOREMAN_SOLO=1`, and fails open on any git error or a 5 s timeout. Every request works in its own worktree under `.worktrees/<slug>` (excluded via `.git/info/exclude`, never the tracked `.gitignore`); see `skills/releasing/SKILL.md`. The extra `uv run` launch on Edit/Write is unmeasured.
+PreToolUse on `Edit|Write|NotebookEdit`, subagents only. It denies an edit when the edited file's own checkout is on the default branch (`origin/HEAD`, else `main` or `master`). It allows `docs/specs/`, `docs/plans/`, memory folders, detached HEAD, files outside git and `FOREMAN_SOLO=1`, and fails open on any git error or a 5 s timeout. Every request works in its own worktree under `.worktrees/<slug>` (excluded via `.git/info/exclude`, never the tracked `.gitignore`); see `skills/releasing/SKILL.md`. When the main checkout has `.codegraph/`, each worktree gets its own codegraph index (`codegraph init`), queried through the codegraph CLI from the worktree (never the MCP `projectPath`) and removed with `codegraph uninit` before `git worktree remove`. The extra `uv run` launch on Edit/Write is unmeasured.
 
 ## Search guard
 
