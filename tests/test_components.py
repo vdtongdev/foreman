@@ -42,9 +42,23 @@ def test_every_agent_requires_evidence_sections():
 
 
 def test_skills_have_frontmatter():
-    for s in ["orchestrating", "memory", "verifying"]:
+    for s in ["orchestrating", "memory", "verifying", "releasing"]:
         meta, _ = memory.parse_frontmatter((ROOT / "skills" / s / "SKILL.md").read_text(encoding="utf-8"))
         assert meta["name"] == s and meta["description"]
+
+
+def test_releasing_skill_content():
+    t = (ROOT / "skills" / "releasing" / "SKILL.md").read_text(encoding="utf-8")
+    for w in ("Keep a Changelog", "SemVer", "Conventional Commits", "[Unreleased]", "vX.Y.Z", "Mode: git"):
+        assert w in t, w
+    assert "own convention wins" in t
+
+
+def test_agents_reference_changelog_rule():
+    for n in ("planner", "implementer", "ui", "verifier"):
+        t = (ROOT / "agents" / f"{n}.md").read_text(encoding="utf-8")
+        assert "CHANGELOG.md" in t and "[Unreleased]" in t, n
+    assert "--follow-tags" in (ROOT / "agents" / "verifier.md").read_text(encoding="utf-8")
 
 
 def test_frontmatter_values_with_colon_space_are_quoted():
@@ -127,3 +141,23 @@ def test_agents_follow_mvc_layering():
         assert "mvc" in a[n][1].lower(), n
     assert "by feature" in a["planner"][1].lower()
     assert "layer" in a["verifier"][1].lower()
+
+
+def test_changelog_keep_a_changelog():
+    text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    heads = re.findall(r"^## (.+)$", text, re.M)
+    assert heads == ["[Unreleased]", "[0.2.1] - 2026-11-20", "[0.2.0] - 2026-11-17"]
+    for h in heads[1:]:
+        assert re.search(r"\d{4}-\d{2}-\d{2}$", h)
+    allowed = {"Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"}
+    assert set(re.findall(r"^### (.+)$", text, re.M)) <= allowed
+    for ref in ("Unreleased", "0.2.1", "0.2.0"):
+        assert re.search(rf"^\[{re.escape(ref)}\]: \S+", text, re.M)
+
+
+def test_plugin_version_matches_changelog():
+    import json
+    version = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
+    text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    newest = re.search(r"^## \[(\d+\.\d+\.\d+)\] - ", text, re.M).group(1)
+    assert version == newest == "0.2.1"

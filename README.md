@@ -50,13 +50,21 @@ If installation fails, verify that the repository is publicly accessible and tha
 
 To turn it off for one project, disable the plugin at local scope.
 
+## Progress
+
+Current version: 0.2.1. See [CHANGELOG.md](CHANGELOG.md) for details; versioning and git rules are in the `releasing` skill.
+
+- **0.1:** four-agent roster (generalist, implementer, verifier, expert), typed memory with `mem`, orchestrator guard, plan gate and evidence check hooks.
+- **0.2:** loop v2: quick and plan lanes, `ui`, `planner` and `builder` agents, one verdict per review, failure routing, search guard, optional Impeccable.
+- **0.2.1:** patch: `releasing` skill and git rules, MVC layering rules for agents.
+
 ## Layout
 
 ```
 foreman/
 ├── .claude-plugin/   plugin.json, marketplace.json (this repo is its own marketplace)
 ├── agents/           builder.md  generalist.md  implementer.md  planner.md  ui.md  verifier.md
-├── skills/           orchestrating/  memory/  verifying/
+├── skills/           orchestrating/  memory/  releasing/  verifying/
 ├── hooks/hooks.json  every hook calls scripts/foreman_hooks.py <hook>
 ├── scripts/          foreman_hooks.py (guard, plan-gate, plan-record, trap-inject,
 │                     memory-write, session-start, subagent-start, evidence-check)  memory.py (memory library + mem CLI)

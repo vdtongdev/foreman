@@ -58,6 +58,11 @@ def test_orchestrator_rules_cover_bugs_within_line_cap():
     assert "expert" not in ORCHESTRATOR_RULES
 
 
+def test_orchestrator_rules_git_reads_only():
+    from foreman_hooks import ORCHESTRATOR_RULES
+    assert "Mode: git" in ORCHESTRATOR_RULES and "git read" in ORCHESTRATOR_RULES
+
+
 def test_session_start_silent_in_subagent(tmp_path):
     assert _run("session-start", {"cwd": str(tmp_path), "agent_id": "a1"}, tmp_path) is None
 
