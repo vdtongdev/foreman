@@ -26,8 +26,8 @@ Run independent tasks in parallel. Searches: Grep, Glob, WebFetch and WebSearch 
 
 Sort every request. It is quick only if all hold: one dispatch finishes it and the few (about 3) files are known; no open behavior decisions; it touches no auth, secrets, data migrations or public API; one command checks it. When unsure, choose quick.
 
-1. **Quick lane.** Brief with `Mode: quick` to `generalist` (text, docs, mechanical), `implementer` (small code change, test first) or `ui` (small UI change). Anything that changed code goes to the `verifier`. Two `FAIL: impl` or a `BLOCKED` report promotes the task to the plan lane.
-2. **Plan lane.** Write the spec with the user (`superpowers:brainstorming`) with a Security section (threats, auth, input, secrets, data exposure; "None applicable" stated) and, for UI, a Design section (`PRODUCT.md`, `DESIGN.md`). Dispatch `foreman:planner` with the spec path. Read the plan; send it back if it misses spec items (each Security item is an acceptance criterion, each UI task has the detector command). Then dispatch `foreman:builder` with `Plan: docs/plans/<file>.md`; every task needs `Agent:` and `Files:` lines (a hook checks). Planner-written plans are not recorded as session plans, so name the plan in every non-quick edit brief.
+1. **Quick lane.** Brief with `Mode: quick` to `generalist` (text, docs, mechanical), `implementer` (small code change, test first) or `ui` (small UI change). Anything that changed code goes to the `verifier`. Two `FAIL: impl` or a `BLOCKED` report promotes the task to the plan lane. The brief names `Worktree: .worktrees/<slug>` and `Branch: <type>/<slug>`; the first agent creates it as step 1 (`foreman:releasing`), and the verifier and the later `Mode: git` dispatch get the same lines.
+2. **Plan lane.** Write the spec with the user (`superpowers:brainstorming`) with a Security section (threats, auth, input, secrets, data exposure; "None applicable" stated) and, for UI, a Design section (`PRODUCT.md`, `DESIGN.md`). Dispatch `foreman:planner` with the spec path. Read the plan; send it back if it misses spec items (each Security item is an acceptance criterion, each UI task has the detector command). Then dispatch `foreman:builder` with `Plan: docs/plans/<file>.md`; the builder creates the worktree before task 1 and copies the untracked spec and plan into it (you still write specs and plans in the main checkout and never run git writes); every task needs `Agent:` and `Files:` lines (a hook checks). Planner-written plans are not recorded as session plans, so name the plan in every non-quick edit brief.
 3. **Promotion.** A promoted quick task gets a short spec: the original request, both failure reports and the open question that made it non-quick. Give the reports to the planner too.
 
 Report "done" only by quoting the verifier's evidence. Write memory (`foreman:memory`) for lessons worth keeping. Relay "Impeccable not installed" (from a `ui` or verifier report) to the user once per session; foreman works without it.
@@ -66,6 +66,8 @@ Mode: diagnose   (optional: diagnosis-only brief, exempt from the plan gate)
 Mode: git   (optional: git-only brief, e.g. commit/push; exempt from the plan gate)
 Mode: lookup   (optional: read-only generalist lookup, exempt from the plan gate)
 Plan: docs/plans/<file>.md   (required for every non-quick edit brief and for foreman:builder)
+Worktree: <path>   (required for every brief that edits or runs git, once the worktree exists)
+Branch: <type>/<slug>   (same briefs as Worktree:)
 ## Files
 <paths to read or change>
 ## Acceptance

@@ -122,6 +122,10 @@ In the main session, `Edit`/`Write`/`NotebookEdit` on files inside the project (
 
 To work solo for a session, set `FOREMAN_SOLO=1` in the environment before starting `claude`.
 
+## Branch guard
+
+PreToolUse on `Edit|Write|NotebookEdit`, subagents only. It denies an edit when the edited file's own checkout is on the default branch (`origin/HEAD`, else `main` or `master`). It allows `docs/specs/`, `docs/plans/`, memory folders, detached HEAD, files outside git and `FOREMAN_SOLO=1`, and fails open on any git error or a 5 s timeout. Every request works in its own worktree under `.worktrees/<slug>` (excluded via `.git/info/exclude`, never the tracked `.gitignore`); see `skills/releasing/SKILL.md`. The extra `uv run` launch on Edit/Write is unmeasured.
+
 ## Search guard
 
 In the main session, `Grep`, `Glob`, `WebFetch` and `WebSearch` are denied, so the orchestrator never searches itself. `Read` stays allowed for files it can name. For a search, the deny reason tells it to dispatch `generalist` with `Mode: lookup` (Haiku, no plan needed); the report must give `file:line` and exact quotes, not conclusions. Shell searches (`grep`, `find`, `rg` through Bash) are forbidden by rule, not enforced by a hook. Subagents are not affected.
