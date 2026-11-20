@@ -185,12 +185,12 @@ def test_agents_follow_mvc_layering():
 def test_changelog_keep_a_changelog():
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     heads = re.findall(r"^## (.+)$", text, re.M)
-    assert heads == ["[Unreleased]", "[0.2.1] - 2026-11-20", "[0.2.0] - 2026-11-17"]
+    assert heads == ["[Unreleased]", "[0.2.2] - 2026-11-20", "[0.2.1] - 2026-11-20", "[0.2.0] - 2026-11-17"]
     for h in heads[1:]:
         assert re.search(r"\d{4}-\d{2}-\d{2}$", h)
     allowed = {"Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"}
     assert set(re.findall(r"^### (.+)$", text, re.M)) <= allowed
-    for ref in ("Unreleased", "0.2.1", "0.2.0"):
+    for ref in ("Unreleased", "0.2.2", "0.2.1", "0.2.0"):
         assert re.search(rf"^\[{re.escape(ref)}\]: \S+", text, re.M)
     for url in re.findall(r"^\[[^\]]+\]: (\S+)", text, re.M):
         assert not any(b in url for b in ("/compare/v", "/tree/v", "/releases/tag/")), url
@@ -201,7 +201,7 @@ def test_plugin_version_matches_changelog():
     version = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     newest = re.search(r"^## \[(\d+\.\d+\.\d+)\] - ", text, re.M).group(1)
-    assert version == newest == "0.2.1"
+    assert version == newest == "0.2.2"
 
 
 def _read(*p):
@@ -307,6 +307,6 @@ def test_antipatterns_in_readme_and_changelog():
     assert "antipatterns/" in row
     assert "load `antipatterns`" in r
     c = _read("CHANGELOG.md")
-    unreleased = c.split("## [Unreleased]")[1].split("\n## [0.")[0]
+    unreleased = c.split("## [0.2.2]")[1].split("\n## [0.")[0]
     added = unreleased.split("### Added")[1].split("\n### ")[0]
     assert "antipatterns" in added

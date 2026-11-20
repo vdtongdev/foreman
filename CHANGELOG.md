@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-20
+
 ### Added
 
 - `antipatterns` skill (scope, code smells, design patterns, agent workflow) that the implementer and ui follow and the verifier enforces only for clear-cut items; memory entry-fitness rules extended.
@@ -45,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The `expert` agent.
 
-[Unreleased]: https://github.com/vdtongdev/foreman/compare/9c93ac8...HEAD
+[Unreleased]: https://github.com/vdtongdev/foreman/compare/c242f14...HEAD
+[0.2.2]: https://github.com/vdtongdev/foreman/compare/9c93ac8...c242f14
 [0.2.1]: https://github.com/vdtongdev/foreman/compare/eaf4fb6...9c93ac8
 [0.2.0]: https://github.com/vdtongdev/foreman/commit/eaf4fb6
