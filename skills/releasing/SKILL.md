@@ -13,6 +13,7 @@ Applies on any project unless it already documents its own convention (CONTRIBUT
 - Format: `CHANGELOG.md` at repo root, `## [Unreleased]` on top, sections Added, Changed, Deprecated, Removed, Fixed, Security, newest release first, `## [x.y.z] - YYYY-MM-DD`.
 - Upkeep: every user-visible change adds a line under `[Unreleased]` in the same commit as the change. Internal-only changes (tests, invisible refactors, plan files) add none.
 - Entries describe behaviour. They contain no secrets, tokens, internal hostnames or private paths.
+- Link references at the bottom use commit SHAs (`compare/<prev-release-sha>...<release-sha>`, `[Unreleased]` → `compare/<release-sha>...HEAD`), never tag names, because tags stay local.
 
 ## Versions (SemVer 2.0.0)
 
