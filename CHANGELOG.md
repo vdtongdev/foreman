@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Every request works in its own git worktree and branch, and a branch guard denies subagent edits on the default branch (fails open on any git error).
+- Worktrees get their own codegraph index when the project already uses codegraph, and cleanup uninits it before removing the worktree.
 
 ### Fixed
 
 - Changelog links use commit SHAs, since release tags stay local.
+- The merge cleanup deletes the remote branch when a worktree held the local one (merge without `--delete-branch`, then `git push origin --delete`).
 
 ## [0.2.1] - 2026-11-20
 

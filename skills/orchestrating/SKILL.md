@@ -66,7 +66,7 @@ Mode: diagnose   (optional: diagnosis-only brief, exempt from the plan gate)
 Mode: git   (optional: git-only brief, e.g. commit/push; exempt from the plan gate)
 Mode: lookup   (optional: read-only generalist lookup, exempt from the plan gate)
 Plan: docs/plans/<file>.md   (required for every non-quick edit brief and for foreman:builder)
-Worktree: <path>   (required for every brief that edits or runs git, once the worktree exists)
+Worktree: <path>   (required for every brief that edits or runs git, once the worktree exists; also the directory to run the codegraph CLI from, see `foreman:releasing`; never a worktree as MCP `projectPath`)
 Branch: <type>/<slug>   (same briefs as Worktree:)
 ## Files
 <paths to read or change>
