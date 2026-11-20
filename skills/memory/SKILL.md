@@ -35,6 +35,7 @@ Write entries with the Write tool; hooks validate them and block with every prob
 ## Rules
 
 - Write an entry only if it is all of: recurrent, not already caught by a tool or test, not duplicated in CLAUDE.md or another entry, still relevant, non-obvious to a competent reader of the code.
+- A one-shot lesson already applied everywhere is dead weight: skip it. Entries that share a root rule are merged into one, with the different failure modes as its guidance. Deprecate an entry once the code has moved past its condition.
 - `verified: human` only when the user stated or confirmed the fact in this conversation; otherwise `model`. A human fact beats a model fact; flag conflicts, don't silently resolve them.
 - `stale_after` defaults: reference about 6 months; project state about 1 month; a version fact, the next release.
 - Re-verifying: set `verified_on` to today and move `stale_after` forward.
