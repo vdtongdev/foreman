@@ -153,6 +153,8 @@ def test_changelog_keep_a_changelog():
     assert set(re.findall(r"^### (.+)$", text, re.M)) <= allowed
     for ref in ("Unreleased", "0.2.1", "0.2.0"):
         assert re.search(rf"^\[{re.escape(ref)}\]: \S+", text, re.M)
+    for url in re.findall(r"^\[[^\]]+\]: (\S+)", text, re.M):
+        assert not any(b in url for b in ("/compare/v", "/tree/v", "/releases/tag/")), url
 
 
 def test_plugin_version_matches_changelog():

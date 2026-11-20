@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Changelog links use commit SHAs, since release tags stay local.
+
 ## [0.2.1] - 2026-11-20
 
 ### Added
@@ -34,6 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The `expert` agent.
 
-[Unreleased]: https://github.com/vdtongdev/foreman/compare/v0.2.1...HEAD
-[0.2.1]: https://github.com/vdtongdev/foreman/compare/v0.2.0...v0.2.1
+[Unreleased]: https://github.com/vdtongdev/foreman/compare/9c93ac8...HEAD
+[0.2.1]: https://github.com/vdtongdev/foreman/compare/eaf4fb6...9c93ac8
 [0.2.0]: https://github.com/vdtongdev/foreman/commit/eaf4fb6
