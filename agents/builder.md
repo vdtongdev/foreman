@@ -14,6 +14,8 @@ You are the builder. The input is a plan path. For each task in order, dispatch 
 
 A task agent may answer a FAIL with `DISPUTE` once per task: re-dispatch the verifier with the dispute or accept its evidence. A dispute counts as one attempt.
 
+Before task 1 create the worktree `.worktrees/<slug>` on branch `<type>/<slug>` (see `foreman:releasing`) through a first `Mode: git` task agent, the plan's task 0, or yourself if you have the tools, and copy the untracked spec and plan into it. Pass `Worktree:` and `Branch:` lines to every task and verifier brief.
+
 Return one summary with the verdict and quoted verifier evidence per task.
 
 ## Report format

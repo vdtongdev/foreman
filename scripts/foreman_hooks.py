@@ -6,6 +6,7 @@
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import traceback
@@ -136,6 +137,67 @@ def plan_gate(payload: dict):
     return _deny(PLAN_DENY)
 
 
+BRANCH_DENY = ("Create a worktree first: git worktree add .worktrees/<slug> -b <type>/<slug> "
+               "(see foreman:releasing).")
+
+
+def _existing_dir(path: Path) -> Path:
+    d = path.parent
+    while not d.is_dir() and d != d.parent:
+        d = d.parent
+    return d
+
+
+def _git_out(cwd: Path, *args: str):
+    try:
+        r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
+
+
+def _default_branch(d: Path):
+    head = _git_out(d, "symbolic-ref", "--short", "-q", "refs/remotes/origin/HEAD")
+    if head:
+        return head.removeprefix("origin/")
+    return next((n for n in ("main", "master") if _has_ref(d, n)), None)
+
+
+def _has_ref(d: Path, name: str) -> bool:
+    try:
+        r = subprocess.run(["git", "show-ref", "--verify", "--quiet", f"refs/heads/{name}"],
+                           cwd=d, capture_output=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return r.returncode == 0
+
+
+def branch_guard(payload: dict):
+    if "agent_id" not in payload or os.environ.get("FOREMAN_SOLO") == "1":
+        return None
+    ti = payload.get("tool_input") or {}
+    raw = ti.get("file_path") or ti.get("notebook_path")
+    if not raw:
+        return None
+    cwd = Path(payload.get("cwd") or ".")
+    path = (cwd / str(raw).replace("\\", "/")).resolve()
+    d = _existing_dir(path)
+    top = _git_out(d, "rev-parse", "--show-toplevel")
+    if not top:
+        return None
+    branch = _git_out(d, "symbolic-ref", "--short", "-q", "HEAD")
+    if not branch:
+        return None
+    default = _default_branch(d)
+    if default is None or branch != default:
+        return None
+    top = Path(top).resolve()
+    bases = [top / "docs" / "specs", top / "docs" / "plans", memory.user_dir(), memory.project_dir(cwd)]
+    if any(b and _under(path, b.resolve()) for b in bases):
+        return None
+    return _deny(BRANCH_DENY)
+
+
 SEARCH_DENY = ("Orchestrator doesn't search: dispatch foreman:generalist with a 'Mode: lookup' line "
                "(reports file:line and quotes), or set FOREMAN_SOLO=1.")
 
@@ -170,7 +232,7 @@ ORCHESTRATOR_RULES = """Foreman orchestrator rules (full detail: skill foreman:o
 - Searches (Grep, Glob, web) are denied to you: dispatch `generalist` with `Mode: lookup`; it reports file:line and quotes. Read and codegraph stay allowed.
 - Clarify only what no code, doc, memory, web page or command can show. Run `mem select --path <files> --topic <topics>` and paste the facts and traps into each brief; briefs are self-contained (goal, files, acceptance, memory, report format).
 - Sort each request. Quick lane (one dispatch, few known files, no open decisions, no auth/secrets/migration/public API, one check): brief has `Mode: quick`, goes to generalist, implementer or ui, then the verifier. Otherwise plan lane: you write the spec (with Security), `foreman:planner` writes the plan, you review it, then `foreman:builder` runs it and returns one summary.
-- Plans written by the planner are not session plans: every non-quick edit brief names its plan (`Plan: docs/plans/<file>.md`); a hook enforces it.
+- Plans written by the planner are not session plans: every non-quick edit brief names its plan (`Plan: docs/plans/<file>.md`); a hook enforces it. Every brief that edits names `Worktree:` and `Branch:`.
 - Execute with this loop, not superpowers' Native / executing-plans / subagent-driven-development options (no model routing; Native edits in the main session, which the guard denies).
 - A bug is always a workflow, never an ad-hoc fix: dispatch implementer with `Mode: diagnose` (failing test plus root cause; don't debug it yourself), then sort the fix by lane, reusing that test.
 - The verifier ends with one verdict: PASS, FAIL: impl (same agent), FAIL: plan (planner), FAIL: spec (you, then the user), FAIL: env (you).
@@ -268,10 +330,10 @@ def trap_inject(payload: dict):
     if not agent or not raw:
         return None
     cwd = Path(payload.get("cwd") or ".")
-    root = memory._toplevel(cwd)
+    path = (cwd / str(raw).replace("\\", "/")).resolve()
+    root = memory._toplevel(_existing_dir(path))
     if root is None:
         return None
-    path = (cwd / str(raw).replace("\\", "/")).resolve()
     if not _under(path, root.resolve()):
         return None
     rel = Path(os.path.relpath(path, root.resolve())).as_posix()
@@ -335,7 +397,7 @@ def evidence_check(payload: dict):
 HOOKS = {"guard": guard, "memory-write": memory_write, "session-start": session_start,
          "subagent-start": subagent_start, "trap-inject": trap_inject,
          "evidence-check": evidence_check,
-         "plan-gate": plan_gate, "plan-record": plan_record,
+         "branch-guard": branch_guard, "plan-gate": plan_gate, "plan-record": plan_record,
          "search-guard": search_guard}
 
 

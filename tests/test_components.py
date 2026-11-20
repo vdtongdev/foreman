@@ -163,3 +163,29 @@ def test_plugin_version_matches_changelog():
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     newest = re.search(r"^## \[(\d+\.\d+\.\d+)\] - ", text, re.M).group(1)
     assert version == newest == "0.2.1"
+
+
+def _read(*p):
+    return (ROOT.joinpath(*p)).read_text(encoding="utf-8")
+
+
+def test_releasing_worktree_rules():
+    t = _read("skills", "releasing", "SKILL.md")
+    for w in ("git worktree add", ".worktrees/", ".git/info/exclude", "git worktree remove",
+              "branch -d", "Worktree:", "Branch:", "without --force", "never -D",
+              "tracked `.gitignore` is never edited", "plain branch in the main checkout",
+              "reason under Evidence", "Editing the default branch is never allowed"):
+        assert w in t, w
+
+
+def test_agents_reference_worktree():
+    for n in ("builder", "implementer", "verifier", "ui", "generalist"):
+        assert "Worktree:" in _read("agents", f"{n}.md"), n
+    t = _read("skills", "orchestrating", "SKILL.md")
+    assert "Worktree:" in t and "Branch:" in t
+
+
+def test_verifier_fails_default_branch():
+    t = _read("agents", "verifier.md")
+    assert "default branch" in t and "FAIL: impl" in t
+    assert "default branch is `FAIL: impl`" in t

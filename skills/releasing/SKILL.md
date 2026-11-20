@@ -34,6 +34,11 @@ One commit `chore(release): vX.Y.Z` that: moves `[Unreleased]` entries into the 
 ## Branches and PRs (GitHub Flow)
 
 - One branch per request off up-to-date `main`, named `<type>/<short-slug>`. Never commit directly to `main`.
+- **Worktree by default.** Before the first edit of a request, from the main checkout run `git fetch`, fast-forward the default branch, then `git worktree add .worktrees/<slug> -b <type>/<slug> <default-branch>`.
+- **Location.** `.worktrees/<slug>` inside the repo, excluded through `.git/info/exclude` (local only); the tracked `.gitignore` is never edited for this.
+- **Fallback.** A plain branch in the main checkout is allowed only when a worktree is impractical (heavy per-checkout installs, submodules that fail to init); state the reason under Evidence. Editing the default branch is never allowed.
+- **Briefs.** After creation every brief carries `Worktree: <path>` and `Branch: <name>`; agents edit, test and run git only inside that path.
+- **Cleanup after merge** (in the `Mode: git` merge task): `git worktree remove <path>` without --force (report if it refuses), `git branch -d <branch>` (never -D). Then delete the main checkout's untracked spec and plan copies only if `git diff --no-index` shows them identical to the merged ones, and `--ff-only` the default branch there.
 - One PR per request. The full test suite passes before merge. Merge with `gh pr merge --merge`, never `--admin`; delete the branch after merge; update local `main` with `--ff-only`.
 - Never force-push `main`. Ask the user first before `reset --hard`, `branch -D` or `clean -fdx`.
 
