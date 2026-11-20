@@ -118,3 +118,22 @@ def test_session_start_invalid_block_relative_and_capped(tmp_path):
     c = _run("session-start", {"cwd": str(tmp_path)}, tmp_path)["hookSpecificOutput"]["additionalContext"]
     assert str(d) not in c and "more: run mem validate" in c
     assert len(c.split("Invalid memory entries: ")[1]) < 3200
+
+
+def test_trap_inject_uses_worktree_toplevel(tmp_path):
+    d, repo = _user(tmp_path), _repo(tmp_path)
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "commit", "--allow-empty", "-q", "-m", "init"], cwd=repo, check=True)
+    wt = repo / ".worktrees" / "x"
+    subprocess.run([*git, "worktree", "add", "-q", str(wt), "-b", "feat/x"], cwd=repo, check=True)
+    write(d, "wt-trap", trap=True, paths=["src/**/*.py"], body="worktree trap")
+    out = _edit(tmp_path, "a1", str(wt / "src" / "a.py"), repo)
+    assert "worktree trap" in out["hookSpecificOutput"]["additionalContext"]
+    outside = tmp_path / "plain"
+    outside.mkdir()
+    assert _edit(tmp_path, "a2", str(outside / "src" / "a.py"), repo) is None
+
+
+def test_orchestrator_rules_name_worktree_and_branch():
+    from foreman_hooks import ORCHESTRATOR_RULES
+    assert "Worktree:" in ORCHESTRATOR_RULES and "Branch:" in ORCHESTRATOR_RULES

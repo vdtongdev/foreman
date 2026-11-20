@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Every request works in its own git worktree and branch, and a branch guard denies subagent edits on the default branch (fails open on any git error).
+
 ### Fixed
 
 - Changelog links use commit SHAs, since release tags stay local.
