@@ -1,5 +1,8 @@
+import datetime
 import re
 from pathlib import Path
+
+import pytest
 import memory
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -182,26 +185,55 @@ def test_agents_follow_mvc_layering():
     assert "layer" in a["verifier"][1].lower()
 
 
+def _parse_changelog(text):
+    """Return [(heading, body)] per `## ` section; assert Keep a Changelog heading rules."""
+    heads = re.findall(r"^## (.+)$", text, re.M)
+    bodies = re.split(r"^## .+$", text, flags=re.M)[1:]
+    assert heads and heads[0] == "[Unreleased]"
+    prev = None
+    for h in heads[1:]:
+        m = re.fullmatch(r"\[(\d+)\.(\d+)\.(\d+)\] - (\d{4}-\d{2}-\d{2})", h)
+        assert m, h
+        datetime.date.fromisoformat(m.group(4))
+        ver = tuple(int(x) for x in m.groups()[:3])
+        assert prev is None or ver < prev, h
+        prev = ver
+    return list(zip(heads, bodies))
+
+
+def _released_versions(sections):
+    return [re.match(r"\[([^\]]+)\]", h).group(1) for h, _ in sections[1:]]
+
+
 def test_changelog_keep_a_changelog():
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    heads = re.findall(r"^## (.+)$", text, re.M)
-    assert heads == ["[Unreleased]", "[0.2.2] - 2026-11-20", "[0.2.1] - 2026-11-20", "[0.2.0] - 2026-11-17"]
-    for h in heads[1:]:
-        assert re.search(r"\d{4}-\d{2}-\d{2}$", h)
+    sections = _parse_changelog(text)
     allowed = {"Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"}
     assert set(re.findall(r"^### (.+)$", text, re.M)) <= allowed
-    for ref in ("Unreleased", "0.2.2", "0.2.1", "0.2.0"):
-        assert re.search(rf"^\[{re.escape(ref)}\]: \S+", text, re.M)
+    for ref in ["Unreleased"] + _released_versions(sections):
+        assert re.search(rf"^\[{re.escape(ref)}\]: \S+", text, re.M), ref
     for url in re.findall(r"^\[[^\]]+\]: (\S+)", text, re.M):
         assert not any(b in url for b in ("/compare/v", "/tree/v", "/releases/tag/")), url
+
+
+def test_parse_changelog_rejects_bad_input():
+    def log(*heads):
+        return "".join(f"## {h}\n\n" for h in heads)
+
+    ok = log("[Unreleased]", "[0.2.0] - 2026-01-02", "[0.1.0] - 2026-01-01")
+    assert _released_versions(_parse_changelog(ok)) == ["0.2.0", "0.1.0"]
+    swapped = log("[Unreleased]", "[0.1.0] - 2026-01-01", "[0.2.0] - 2026-01-02")
+    bad_date = log("[Unreleased]", "[0.2.0] - 2026-13-45")
+    for bad in (swapped, bad_date):
+        with pytest.raises((AssertionError, ValueError)):
+            _parse_changelog(bad)
 
 
 def test_plugin_version_matches_changelog():
     import json
     version = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
-    text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    newest = re.search(r"^## \[(\d+\.\d+\.\d+)\] - ", text, re.M).group(1)
-    assert version == newest == "0.2.2"
+    sections = _parse_changelog((ROOT / "CHANGELOG.md").read_text(encoding="utf-8"))
+    assert version == _released_versions(sections)[0]
 
 
 def _read(*p):
@@ -307,6 +339,9 @@ def test_antipatterns_in_readme_and_changelog():
     assert "antipatterns/" in row
     assert "load `antipatterns`" in r
     c = _read("CHANGELOG.md")
-    unreleased = c.split("## [0.2.2]")[1].split("\n## [0.")[0]
-    added = unreleased.split("### Added")[1].split("\n### ")[0]
-    assert "antipatterns" in added
+    addeds = [
+        body.split("### Added")[1].split("\n### ")[0]
+        for _, body in _parse_changelog(c)
+        if "### Added" in body
+    ]
+    assert any("antipatterns" in a for a in addeds)
