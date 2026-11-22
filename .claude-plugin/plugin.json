@@ -1,6 +1,6 @@
 {
   "name": "foreman",
   "description": "Orchestrator discipline and project memory for Claude Code.",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "author": {"name": "vdtongdev"}
 }
