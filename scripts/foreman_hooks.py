@@ -108,6 +108,34 @@ def _deny(reason: str) -> dict:
             "permissionDecision": "deny", "permissionDecisionReason": reason}}
 
 
+_GIT_SEE = " See skill foreman:releasing."
+GIT_AGENT_DENY = "A `Mode: git` brief goes to foreman:implementer only." + _GIT_SEE
+GIT_WORKTREE_DENY = "A `Mode: git` brief needs a non-empty `Worktree:` line." + _GIT_SEE
+GIT_BRANCH_DENY = "A `Mode: git` brief needs a non-empty `Branch:` line." + _GIT_SEE
+GIT_MEMORY_DENY = "A `Mode: git` brief needs a `## Memory` section." + _GIT_SEE
+GIT_MSG_DQ_DENY = "A `Mode: git` brief must not dictate a commit message with `-m \"`; give intent only." + _GIT_SEE
+GIT_MSG_SQ_DENY = "A `Mode: git` brief must not dictate a commit message with `-m '`; give intent only." + _GIT_SEE
+GIT_MSG_LONG_DENY = "A `Mode: git` brief must not dictate a commit message with `--message`; give intent only." + _GIT_SEE
+GIT_MSG_LINE_DENY = "A `Mode: git` brief must not contain a `Commit message:` line; give intent only." + _GIT_SEE
+
+
+def _git_check(agent: str, prompt: str):
+    if agent != "foreman:implementer":
+        return _deny(GIT_AGENT_DENY)
+    if not re.search(r"^Worktree:[ \t]*\S", prompt, re.M):
+        return _deny(GIT_WORKTREE_DENY)
+    if not re.search(r"^Branch:[ \t]*\S", prompt, re.M):
+        return _deny(GIT_BRANCH_DENY)
+    if not re.search(r"^## Memory", prompt, re.M):
+        return _deny(GIT_MEMORY_DENY)
+    for pat, reason in ((r'-m\s*"', GIT_MSG_DQ_DENY), (r"-m\s*'", GIT_MSG_SQ_DENY), (r"--message", GIT_MSG_LONG_DENY)):
+        if re.search(pat, prompt, re.I):
+            return _deny(reason)
+    if re.search(r"^\s*Commit message:", prompt, re.I | re.M):
+        return _deny(GIT_MSG_LINE_DENY)
+    return None
+
+
 def plan_gate(payload: dict):
     if "agent_id" in payload or os.environ.get("FOREMAN_SOLO") == "1":
         return None
@@ -115,8 +143,10 @@ def plan_gate(payload: dict):
     prompt, agent = ti.get("prompt"), ti.get("subagent_type")
     prompt = prompt if isinstance(prompt, str) else ""
     agent = agent if isinstance(agent, str) else ""
-    if agent in READ_ONLY or re.search(r"^Mode:\s*(?:diagnose|git)\b", prompt, re.I | re.M):
+    if agent in READ_ONLY or re.search(r"^Mode:\s*diagnose\b", prompt, re.I | re.M):
         return None
+    if re.search(r"^Mode:\s*git\b", prompt, re.I | re.M):
+        return _git_check(agent, prompt)
     if agent == "foreman:generalist" and re.search(r"^Mode:\s*lookup\b", prompt, re.I | re.M):
         return None
     if agent in ("foreman:generalist", "foreman:implementer", "foreman:ui") and re.search(
@@ -238,7 +268,7 @@ ORCHESTRATOR_RULES = """Foreman orchestrator rules (full detail: skill foreman:o
 - The verifier ends with one verdict: PASS, FAIL: impl (same agent), FAIL: plan (planner), FAIL: spec (you, then the user), FAIL: env (you).
 - Retries: two impl fails on a task count as plan; the planner revises a task twice, then you; if you cannot resolve it, stop and ask the user with the reports. env does not count.
 - Quick task failing twice or BLOCKED: promote to the plan lane with a short spec and both failure reports.
-- Main session runs git read commands only (status, log, diff, show, branch, tag list, plain fetch); every git write goes to a `Mode: git` dispatch with intent in the brief; see skill foreman:releasing.
+- Main session runs git read commands only (status, log, diff, show, branch, tag list, plain fetch). Load `foreman:releasing` before the first git dispatch; every git write goes to a `Mode: git` dispatch to `foreman:implementer` (hook-checked), brief gives intent, never a commit message. Merge = PR + `gh pr merge --merge` + cleanup (uninit, worktree remove, branch -d, remote branch delete), never local; no size exemption: docs-only and one-line changes use the same flow.
 - Relay "Impeccable not installed" from a ui or verifier report to the user once per session.
 - Claims need evidence observed this session (command plus output, file:line, or URL plus quote); a memory fact counts only if verified: human and not stale.
 - Report "done" only by quoting the verifier's evidence. Write memory for what was learned."""

@@ -14,7 +14,7 @@ This replaces `superpowers:subagent-driven-development` for execution (it has no
 | Agent | Model/effort | Use for |
 |---|---|---|
 | `generalist` | haiku low | Lookups for everyone (`Mode: lookup`), docs/text edits, exact mechanical edits. No behavior changes, bug work or tests. |
-| `implementer` | sonnet medium | Code behavior changes, tests, bug diagnosis |
+| `implementer` | sonnet medium | Code behavior changes, tests, bug diagnosis, `Mode: git` |
 | `ui` | sonnet medium | UI work; implementer plus the Impeccable skill, builds from the spec's Design section |
 | `planner` | sonnet | Spec to plan under `docs/plans/` (every task has `Agent:`, `Files:`, acceptance); revises plans on `FAIL: plan` |
 | `builder` | sonnet | Runs a plan: dispatches task agents and the verifier, routes failures, returns one summary |
@@ -63,7 +63,7 @@ Self-contained; the agent has no other context. In the main session run git read
 <one or two sentences>
 Mode: quick   (optional: quick-lane brief to generalist, implementer or ui, exempt from the plan gate)
 Mode: diagnose   (optional: diagnosis-only brief, exempt from the plan gate)
-Mode: git   (optional: git-only brief, e.g. commit/push; exempt from the plan gate)
+Mode: git   (optional: git-only brief, e.g. commit/push/merge; goes to `foreman:implementer` and requires `Worktree:`, `Branch:` and `## Memory`; never contains a commit message)
 Mode: lookup   (optional: read-only generalist lookup, exempt from the plan gate)
 Plan: docs/plans/<file>.md   (required for every non-quick edit brief and for foreman:builder)
 Worktree: <path>   (required for every brief that edits or runs git, once the worktree exists; also the directory to run the codegraph CLI from, see `foreman:releasing`; never a worktree as MCP `projectPath`)

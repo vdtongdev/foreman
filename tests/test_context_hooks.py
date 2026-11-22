@@ -63,6 +63,16 @@ def test_orchestrator_rules_git_reads_only():
     assert "Mode: git" in ORCHESTRATOR_RULES and "git read" in ORCHESTRATOR_RULES
 
 
+def test_orchestrator_rules_git_flow():
+    from foreman_hooks import ORCHESTRATOR_RULES as R
+    low = R.lower()
+    assert "foreman:releasing" in R and "first git dispatch" in low
+    assert "commit message" in low and "never" in low
+    assert "gh pr merge --merge" in R
+    assert "size exemption" in low
+    assert len(R.splitlines()) <= 15
+
+
 def test_session_start_silent_in_subagent(tmp_path):
     assert _run("session-start", {"cwd": str(tmp_path), "agent_id": "a1"}, tmp_path) is None
 

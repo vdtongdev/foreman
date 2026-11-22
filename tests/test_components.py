@@ -145,6 +145,12 @@ def test_agents_describe_bug_handling():
     assert "regression test" in ver and "base commit" in ver and "git worktree" in ver
 
 
+def test_implementer_git_mode_merges_via_pr_and_overrides_brief():
+    body = agents()["implementer"][1]
+    assert "gh pr merge --merge" in body
+    assert "override" in body and "Unverified" in body
+
+
 def test_verifier_lists_verdicts():
     body = agents()["verifier"][1]
     for w in ["PASS", "FAIL: impl", "FAIL: plan", "FAIL: spec", "FAIL: env",

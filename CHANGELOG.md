@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Plan gate now checks `Mode: git` briefs: only `foreman:implementer`, with `Worktree:`, `Branch:` and `## Memory`, and no dictated commit message (fails open); the implementer merges through a PR and its git conventions override conflicting brief text.
+- Orchestrator rules: git writes go through `Mode: git` dispatches, merging is a PR with `gh pr merge --merge` plus cleanup, and there are no size exemptions.
+
 ## [0.2.2] - 2026-11-20
 
 ### Added
