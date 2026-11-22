@@ -47,4 +47,4 @@ One commit `chore(release): vX.Y.Z` that: moves `[Unreleased]` entries into the 
 
 ## Who runs git
 
-The main session runs git read commands only: `status`, `log`, `diff`, `show`, `branch` (list), `tag` (list), plain `fetch`. Every git write goes to a `Mode: git` dispatch; the brief gives intent (files, what changed) and the agent writes the commit message and PR body. The orchestrator decides when a milestone is reached and dispatches the release cut as `Mode: git`.
+The main session runs git read commands only: `status`, `log`, `diff`, `show`, `branch` (list), `tag` (list), plain `fetch`. Every git write goes to a `Mode: git` dispatch to `foreman:implementer`; the brief gives intent (files, what changed) and the brief never contains a commit message, and the agent writes the commit message and PR body. The orchestrator decides when a milestone is reached and dispatches the release cut as `Mode: git`.
