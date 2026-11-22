@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-22
+
 ### Changed
 
 - Plan gate now checks `Mode: git` briefs: only `foreman:implementer`, with `Worktree:`, `Branch:` and `## Memory`, and no dictated commit message (fails open); the implementer merges through a PR and its git conventions override conflicting brief text.
@@ -52,7 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The `expert` agent.
 
-[Unreleased]: https://github.com/vdtongdev/foreman/compare/c242f14...HEAD
+[Unreleased]: https://github.com/vdtongdev/foreman/compare/5f407ad...HEAD
+[0.2.3]: https://github.com/vdtongdev/foreman/compare/c242f14...5f407ad
 [0.2.2]: https://github.com/vdtongdev/foreman/compare/9c93ac8...c242f14
 [0.2.1]: https://github.com/vdtongdev/foreman/compare/eaf4fb6...9c93ac8
 [0.2.0]: https://github.com/vdtongdev/foreman/commit/eaf4fb6
